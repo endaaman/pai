@@ -43,16 +43,6 @@ button_analyze = builder.get_object('buttonAnalyze')
 box = builder.get_object('box')
 image = builder.get_object('image')
 
-def on_ws_message(ws, message):
-    global server_status
-    server_status = json.loads(message)
-
-def on_ws_error(ws, error):
-    print(error)
-
-def on_ws_close(ws):
-    pass
-
 def is_ws_active():
     # return ws and ws.sock and ws.sock.connected
     return ws and ws.connected
@@ -69,11 +59,6 @@ def create_ws_connection():
     global ws
     try:
         ws = websocket.create_connection(f'ws://{HOST}/api/status')
-        # ws = websocket.WebSocketApp(
-        #         f'ws://{HOST}/api/status',
-        #         on_message=on_ws_message,
-        #         on_error=on_ws_error,
-        #         on_close=on_ws_close)
         return True
     except Exception as e:
         print('Failed to connect', e)
@@ -136,7 +121,7 @@ def update_ws_connection(*args):
             if server_status['current']:
                 update_status(Status.PROCESSING)
             else:
-                if status != Status.UPLOADING:
+                if not status is Status.UPLOADING:
                     update_status(Status.CONNECTED)
         except json.JSONDecodeError as e:
             print(f'PARSE ERROR: {data}')
