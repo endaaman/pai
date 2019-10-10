@@ -89,11 +89,12 @@ def pipe():
         status.set_current(id)
         process_current_item()
         print('ID: ', id, arr.shape)
+    return make_response('done')
 
-@app.route('/')
-def hello():
-    app.logger.debug('Hello World!')
-    return 'Hello World!'
+@app.route('/api/images')
+def images():
+    app.logger.debug('images')
+    return make_response('images')
 
 def process_current_item():
     def inner():

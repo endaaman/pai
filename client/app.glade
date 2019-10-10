@@ -41,6 +41,16 @@
               </object>
             </child>
             <child>
+              <object class="GtkButton" id="buttonCheck">
+                <property name="label" translatable="yes">CHECK</property>
+                <property name="opacity">0.7</property>
+                <property name="width_request">200</property>
+                <property name="height_request">80</property>
+                <property name="halign">end</property>
+                <signal name="clicked" handler="buttonCheckClicked" swapped="no"/>
+              </object>
+            </child>
+            <child>
               <object class="GtkLabel" id="labelStatus">
                 <property name="label" translatable="yes">Initializing...</property>
                 <property name="width_request">200</property>

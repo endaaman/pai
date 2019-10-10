@@ -12,7 +12,8 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GLib, GdkPixbuf
 
-HOST = 'localhost:8080'
+API_HOST = 'localhost:8080'
+WS_HOST = 'localhost:8081'
 RECONNECT_DURATION = 3
 VIDEO = 0
 
@@ -36,7 +37,7 @@ def update_status(s):
 
 
 builder = Gtk.Builder()
-builder.add_from_file('app.glade')
+builder.add_from_file('client/app.glade')
 window = builder.get_object('window')
 label_status = builder.get_object('labelStatus')
 button_analyze = builder.get_object('buttonAnalyze')
@@ -58,7 +59,7 @@ def dispose_ws_connection():
 def create_ws_connection():
     global ws
     try:
-        ws = websocket.create_connection(f'ws://{HOST}/api/status')
+        ws = websocket.create_connection(f'ws://{WS_HOST}/api/status')
         return True
     except Exception as e:
         print('Failed to connect', e)
@@ -84,9 +85,10 @@ class Handler:
         update_status(Status.UPLOADING)
         # print(type(binary.tobytes()))
         ws.send_binary(binary.tobytes())
-        # files = {'uploadFile': ('img.jpg', binary, 'image/jpeg')}
-        # response = requests.post(f'http://{HOST}/api/upload', files=files)
-        # print(response.status_code)
+
+    def buttonCheckClicked(self, *args):
+        response = requests.get(f'http://{HOST}/api/images')
+        print(response.status_code)
 
 # window.fullscreen()
 window.resize(800, 450)
