@@ -78,16 +78,18 @@ class Handler:
         if current_frame is None:
             print('buffer is not loaded')
             return
-        result, binary = cv2.imencode('.jpg', current_frame)
+        result, data = cv2.imencode('.jpg', current_frame)
         if not result:
             print('could not encode image')
             return
-        update_status(Status.UPLOADING)
+
+        res = requests.post(f'http://{API_HOST}/uploads', data=data.tostring(), headers={'content-type': 'image/jpeg'})
+        print(res)
+        # update_status(Status.UPLOADING)
         # print(type(binary.tobytes()))
-        ws.send_binary(binary.tobytes())
 
     def buttonCheckClicked(self, *args):
-        response = requests.get(f'http://{HOST}/api/images')
+        response = requests.get(f'http://{API_HOST}/images')
         print(response.status_code)
 
 # window.fullscreen()

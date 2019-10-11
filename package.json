@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "tsc -w ./server/index.ts & nodemon ./server/index.js",
+    "watch": "tsc -w ./server/index.ts & nodemon ./server/index.js",
     "clean": "rimraf dist/*",
     "tsc": "tsc",
     "build": "npm-run-all clean tsc",
@@ -28,6 +28,7 @@
     "@types/ws": "^6.0.3",
     "date-fns": "^2.4.1",
     "koa": "^2.8.2",
+    "koa-body": "^4.1.1",
     "koa-router": "^7.4.0",
     "nodemon": "^1.19.3",
     "ts-node": "^8.4.1",

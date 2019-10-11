@@ -4,6 +4,7 @@ import * as WebSocket from 'ws'
 import * as Koa from 'koa'
 import * as Router from 'koa-router'
 import * as fns from 'date-fns'
+import * as koaBody from 'koa-body'
 
 
 const API_PORT = 8080
@@ -45,10 +46,12 @@ wss.on('connection', (ws: WebSocket, socket: WebSocket, request: http.IncomingMe
 })
 
 router.get('/images', async (ctx: Koa.Context, next) => {
+  console.log('get images')
   ctx.body = 'images'
 })
 
 router.post('/uploads', async (ctx: Koa.Context, next) => {
+  console.log('post uploads')
   ctx.body = 'up'
 })
 
