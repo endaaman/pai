@@ -1,16 +1,21 @@
-import cv2
+import os
+import io
+import json
+import time
+import threading
+from enum import Enum, auto
+
 import numpy as np
+import cv2
 import requests
 from PIL import Image
 import websocket
-import time
-import json
-import threading
-from enum import Enum, auto
+import matplotlib.pyplot as plt
 
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GLib, GdkPixbuf
+
 
 API_HOST = 'localhost:8080'
 WS_HOST = 'localhost:8081'
@@ -20,8 +25,16 @@ VIDEO = 0
 ws = None
 cap = cv2.VideoCapture(VIDEO)
 current_frame = None
+def update_current_frame(f):
+    global current_frame
+    current_frame = f
 
-class Status(Enum):
+current_frame = None
+def update_current_frame(f):
+    global current_frame
+    current_frame = f
+
+class Connection(Enum):
     INIT = 'Initializing...'
     RETRY = 'Retry to connect server...'
     FAILED = 'Failed to connect server'
@@ -30,10 +43,10 @@ class Status(Enum):
     PROCESSING = 'Processing...'
     UNKNOWN = '????'
 
-status = Status.INIT
-def update_status(s):
-    global status
-    status = s
+conn = Connection.INIT
+def update_conn(c):
+    global conn
+    conn = c
 
 
 builder = Gtk.Builder()
@@ -78,14 +91,18 @@ class Handler:
         if current_frame is None:
             print('buffer is not loaded')
             return
-        result, data = cv2.imencode('.jpg', current_frame)
-        if not result:
-            print('could not encode image')
-            return
-
-        res = requests.post(f'http://{API_HOST}/uploads', data=data.tostring(), headers={'content-type': 'image/jpeg'})
+        # result, data = cv2.imencode('.jpg', current_frame)
+        # if not result:
+        #     print('could not encode image')
+        #     return
+        buf = io.BytesIO()
+        plt.imsave(buf, current_frame, format='jpg')
+        data = buf.getvalue()
+        res = requests.post(
+                f'http://{API_HOST}/upload',
+                files={'image': ('image.jpg', data, 'image/jpeg', {'Expires': '0'})})
         print(res)
-        # update_status(Status.UPLOADING)
+        # update_conn(Connection.UPLOADING)
         # print(type(binary.tobytes()))
 
     def buttonCheckClicked(self, *args):
@@ -105,9 +122,9 @@ def update_ws_connection(*args):
         if not is_ws_active():
             print('Try re-connect')
             r = create_ws_connection()
-            update_status(Status.FAILED)
+            update_conn(Connection.FAILED)
             time.sleep(1)
-            update_status(Status.RETRY)
+            update_conn(Connection.RETRY)
             time.sleep(3)
             if not r:
                 continue
@@ -119,28 +136,28 @@ def update_ws_connection(*args):
             print('ERROR WHEN SENDING', e)
             dispose_ws_connection()
             continue
-        print(f'RECEIVE: {data}')
+        # print(f'RECEIVE: {data}')
         try:
             server_status = json.loads(data)
             if server_status['current']:
-                update_status(Status.PROCESSING)
+                update_conn(Connection.PROCESSING)
             else:
-                if not status is Status.UPLOADING:
-                    update_status(Status.CONNECTED)
+                if not status is Connection.UPLOADING:
+                    update_conn(Connection.CONNECTED)
         except json.JSONDecodeError as e:
             print(f'PARSE ERROR: {data}')
-            update_status(Status.UNKNOWN)
+            update_conn(Connection.UNKNOWN)
 
 
 def show_frame(*args):
-    global current_frame
+    if True:
     ret, frame = cap.read()
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    current_frame = frame.copy()
+    update_current_frame(frame)
     win_w, win_h = window.get_size()
     img_h, img_w, _ = frame.shape
     frame = cv2.resize(frame, None, fx=win_w/img_w, fy=win_h/img_h, interpolation=cv2.INTER_CUBIC)
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     pb = GdkPixbuf.Pixbuf.new_from_data(
             frame.tostring(),
             GdkPixbuf.Colorspace.RGB,
@@ -150,8 +167,8 @@ def show_frame(*args):
             frame.shape[0],
             frame.shape[2]*frame.shape[1])
     image.set_from_pixbuf(pb)
-    label_status.set_text(status.value)
-    button_analyze.set_sensitive(status is Status.CONNECTED)
+    label_status.set_text(conn.value)
+    button_analyze.set_sensitive(conn is Connection.CONNECTED)
     return True
 
 
