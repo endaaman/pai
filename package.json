@@ -2,9 +2,9 @@
   "name": "ai-proxy",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server/index.mjs",
   "scripts": {
-    "watch": "tsc -w ./server/index.ts & nodemon ./server/index.js",
+    "watch": "nodemon ./server/index.mjs",
     "clean": "rimraf dist/*",
     "tsc": "tsc",
     "build": "npm-run-all clean tsc",
@@ -21,21 +21,12 @@
   },
   "homepage": "https://github.com/endaaman/ai-proxy#readme",
   "dependencies": {
-    "@koa/multer": "^2.0.0",
-    "@koa/router": "^8.0.2",
-    "@types/date-fns": "^2.6.0",
-    "@types/koa": "^2.0.50",
-    "@types/koa-router": "^7.0.42",
-    "@types/node": "^12.7.12",
-    "@types/ws": "^6.0.3",
     "date-fns": "^2.4.1",
     "koa": "^2.8.2",
     "koa-body": "^4.1.1",
     "koa-router": "^7.4.0",
     "multer": "^1.4.2",
     "nodemon": "^1.19.3",
-    "ts-node": "^8.4.1",
-    "typescript": "^3.6.4",
     "ws": "^7.1.2"
   }
 }
