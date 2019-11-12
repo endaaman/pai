@@ -26,7 +26,6 @@ VIDEO = 0
 class ConnectionStatus(Enum):
     INIT = 'Initializing...'
     DISCONNECTED = 'Disconnected to server'
-    RETRYING = 'Retry to connect server...'
     CONNECTED = 'Connected'
     UNKNOWN = '????'
 
@@ -69,12 +68,19 @@ class WS:
 
 class ServerState:
     def __init__(self):
-        self.items = []
+        self.queue = []
         self.current = None
+        self.connection_status = ConnectionStatus.INIT
 
-    def load_dict(self, d):
-        self.items = d['items']
+    def receive_data(self, d):
+        self.queue = d['queue']
         self.current = d['current']
+        self.connection_status = ConnectionStatus.CONNECTED
+
+    def reset(self):
+        self.queue = []
+        self.current = []
+        self.connection_status = ConnectionStatus.DISCONNECTED
 
 
 class App:
@@ -90,7 +96,6 @@ class App:
         self.capture = cv2.VideoCapture(VIDEO)
         self.ws = WS()
 
-        self.status = ConnectionStatus.INIT
         self.server_state = ServerState()
         self.frame = None
 
@@ -101,9 +106,6 @@ class App:
 
     def set_frame(self, frame):
         self.frame = frame
-
-    def set_status(self, c):
-        self.status = c
 
     def onDeleteWindow(self, *args):
         if self.ws.is_active():
@@ -141,11 +143,9 @@ class App:
             # ws.run_forever()
             if not self.ws.is_active():
                 print('Try re-connect')
-                self.ws.connect()
-                self.set_status(ConnectionStatus.DISCONNECTED)
-                time.sleep(1)
-                self.set_status(ConnectionStatus.RETRYING)
+                self.server_state.reset()
                 time.sleep(3)
+                self.ws.connect()
                 continue
 
             text = self.ws.acquire_status()
@@ -154,8 +154,8 @@ class App:
                 continue
 
             try:
-                self.server_state.load_dict(json.loads(text))
-                self.set_status(ConnectionStatus.CONNECTED)
+                data = json.loads(text)
+                self.server_state.receive_data(data)
             except json.JSONDecodeError as e:
                 print(f'PARSE ERROR: {data}')
                 self.ws.close()
@@ -182,8 +182,8 @@ class App:
 
         self.render(frame)
 
-        self.label_status.set_text(self.status.value)
-        self.button_analyze.set_sensitive(self.status is ConnectionStatus.CONNECTED)
+        self.label_status.set_text(self.server_state.connection_status.value)
+        self.button_analyze.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
         return True
 
 

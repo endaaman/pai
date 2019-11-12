@@ -20,7 +20,7 @@ const UPLOAD_DIR = 'uploaded/'
 const GENERATED_DIR = 'generated/'
 
 const wss = new WebSocket.Server({ port: WS_PORT })
-const app = new Koa()
+const koa = new Koa()
 const router = new Router()
 const upload = multer()
 
@@ -29,11 +29,11 @@ function generate_id() {
 }
 
 function get_uploaded_path(id) {
- return pathlib.join(UPLOAD_DIR, id + '.jpg')
+  return pathlib.join(UPLOAD_DIR, id + '.jpg')
 }
 
 function get_generated_dir(id) {
- return pathlib.join(GENERATED_DIR, id + '.jpg')
+  return pathlib.join(GENERATED_DIR, id + '.jpg')
 }
 
 async function do_inference(id) {
@@ -48,59 +48,64 @@ function wait(s) {
 
 class App {
   constructor() {
-    this.items = []
-    this.queue = new Promise()
+    this.queue = []
+    this.task = Promise.resolve()
+    this.current = null
   }
   to_json() {
     return JSON.stringify({
-      items: this.items,
+      queue: this.queue,
+      current: this.current,
     })
   }
   push_task(id) {
-    this.items.push(id)
-    this.queue = this.queue.catch(function(e) {
+    this.queue.push(id)
+    this.task = this.task.catch(function(e) {
       console.log(`ERROR: ${e}`)
     }).then(async () => {
-      await do_inference(this.items.shift())
-      await wait(3)
+      this.current = this.queue[0]
+      await do_inference(this.current)
+      await wait(1)
+      this.current = null
+      this.queue.shift()
+      console.log('DONE:', this.queue)
     })
-    console.log('CUR: ', this.items)
+    console.log('CUR: ', this.queue)
   }
 }
-
 
 
 const app = new App()
 
 wss.on('connection', (ws, socket, request) => {
+  console.log('Connected')
   ws.on('message', (message) => {
     // console.log('received: %s', message)
     ws.send(app.to_json())
   })
 })
 
-router.get('/images', async (ctx, next) => {
+router.get('/api/images', async (ctx, next) => {
   console.log('get images')
   ctx.body = 'images'
 })
 
 router.post(
-  '/upload',
+  '/api/upload',
   upload.single('image'),
   async (ctx, next) => {
-    console.log('ctx.file', ctx.file)
-    console.log(ctx.file.buffer)
-    const i = generate_id()
-    const p = get_path(i)
+    const id = generate_id()
+    const p = get_uploaded_path(id)
     await fs.writeFile(p, ctx.file.buffer)
+    app.push_task(id)
     ctx.body = 'up'
     console.log('wrote: ', p)
   }
 )
 
-app.use(router.routes())
-app.use(router.allowedMethods())
-app.use(koaBody({ multipart: true }))
-app.listen(API_PORT, () => {
+koa.use(router.routes())
+koa.use(router.allowedMethods())
+koa.use(koaBody({ multipart: true }))
+koa.listen(API_PORT, () => {
     console.log('Started')
 })
