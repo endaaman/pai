@@ -23,14 +23,13 @@ RECONNECT_DURATION = 3
 VIDEO = 0
 
 
-class Status(Enum):
+class ConnectionStatus(Enum):
     INIT = 'Initializing...'
-    RETRY = 'Retry to connect server...'
-    FAILED = 'Failed to connect server'
+    DISCONNECTED = 'Disconnected to server'
+    RETRYING = 'Retry to connect server...'
     CONNECTED = 'Connected'
-    UPLOADING = 'Uploading...'
-    PROCESSING = 'Processing...'
     UNKNOWN = '????'
+
 
 class WS:
     def __init__(self):
@@ -51,7 +50,7 @@ class WS:
 
     def connect(self):
         try:
-            self.ws = websocket.create_connection(f'ws://{WS_HOST}/api/status')
+            self.ws = websocket.create_connection(f'ws://{WS_HOST}/status')
         except Exception as e:
             print('Failed to connect', e)
             self.ws = None
@@ -68,6 +67,15 @@ class WS:
         return True
         # print(f'RECEIVE: {data}')
 
+class ServerState:
+    def __init__(self):
+        self.items = []
+        self.current = None
+
+    def load_dict(self, d):
+        self.items = d['items']
+        self.current = d['current']
+
 
 class App:
     def __init__(self):
@@ -82,7 +90,8 @@ class App:
         self.capture = cv2.VideoCapture(VIDEO)
         self.ws = WS()
 
-        self.status = Status.INIT
+        self.status = ConnectionStatus.INIT
+        self.server_state = ServerState()
         self.frame = None
 
         # window.fullscreen()
@@ -102,7 +111,7 @@ class App:
         Gtk.main_quit(*args)
 
     def buttonQuitClicked(self, *args):
-        window.close()
+        self.window.close()
 
     def buttonAnalyzeClicked(self, *args):
         if self.frame is None:
@@ -116,14 +125,14 @@ class App:
         plt.imsave(buf, self.frame, format='jpg')
         data = buf.getvalue()
         res = requests.post(
-                f'http://{API_HOST}/upload',
+                f'http://{API_HOST}/api/upload',
                 files={'image': ('image.jpg', data, 'image/jpeg', {'Expires': '0'})})
         print(res)
-        # self.set_status(Status.UPLOADING)
+        # self.set_status(ConnectionStatus.UPLOADING)
         # print(type(binary.tobytes()))
 
     def buttonCheckClicked(self, *args):
-        response = requests.get(f'http://{API_HOST}/images')
+        response = requests.get(f'http://{API_HOST}/api/images')
         print(response.status_code)
 
     def thread_proc(self, *args):
@@ -133,9 +142,9 @@ class App:
             if not self.ws.is_active():
                 print('Try re-connect')
                 self.ws.connect()
-                self.set_status(Status.FAILED)
+                self.set_status(ConnectionStatus.DISCONNECTED)
                 time.sleep(1)
-                self.set_status(Status.RETRY)
+                self.set_status(ConnectionStatus.RETRYING)
                 time.sleep(3)
                 continue
 
@@ -145,36 +154,36 @@ class App:
                 continue
 
             try:
-                data = json.loads(text)
-                if data['current']:
-                    self.set_status(Status.PROCESSING)
-                else:
-                    if not self.status is Status.UPLOADING:
-                        self.set_status(Status.CONNECTED)
+                self.server_state.load_dict(json.loads(text))
+                self.set_status(ConnectionStatus.CONNECTED)
             except json.JSONDecodeError as e:
                 print(f'PARSE ERROR: {data}')
-                self.set_status(Status.UNKNOWN)
+                self.ws.close()
 
-
-    def frame_proc(self, *args):
-        ret, frame = self.capture.read()
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        self.set_frame(frame)
+    def render(self, frame):
         win_w, win_h = self.window.get_size()
         img_h, img_w, _ = frame.shape
-        frame = cv2.resize(frame, None, fx=win_w/img_w, fy=win_h/img_h, interpolation=cv2.INTER_CUBIC)
+        resized = cv2.resize(frame, None, fx=win_w/img_w, fy=win_h/img_h, interpolation=cv2.INTER_CUBIC)
         pb = GdkPixbuf.Pixbuf.new_from_data(
-                frame.tostring(),
+                resized.tostring(),
                 GdkPixbuf.Colorspace.RGB,
                 False,
                 8,
-                frame.shape[1],
-                frame.shape[0],
-                frame.shape[2]*frame.shape[1])
+                resized.shape[1],
+                resized.shape[0],
+                resized.shape[2] * resized.shape[1])
         self.image.set_from_pixbuf(pb)
+
+
+    def frame_proc(self, *args):
+        ret, bgr = self.capture.read()
+        frame = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        self.set_frame(frame)
+
+        self.render(frame)
+
         self.label_status.set_text(self.status.value)
-        self.button_analyze.set_sensitive(self.status is Status.CONNECTED)
+        self.button_analyze.set_sensitive(self.status is ConnectionStatus.CONNECTED)
         return True
 
 
