@@ -9,20 +9,17 @@ const Router = require('@koa/router')
 const fns = require('date-fns')
 const koaBody = require('koa-body')
 const multer = require('@koa/multer')
+const consola = require('consola')
+const { Nuxt, Builder } = require('nuxt')
 
+const config = require('../nuxt.config.js')
 const exec = util.promisify(childProcess.exec)
 
 
-
-const API_PORT = 8080
 const WS_PORT = 8081
 const UPLOAD_DIR = 'uploaded/'
 const GENERATED_DIR = 'generated/'
 
-const wss = new WebSocket.Server({ port: WS_PORT })
-const koa = new Koa()
-const router = new Router()
-const upload = multer()
 
 function generate_id() {
   return fns.format(new Date(), 'yyyy-MM-dd_HHmmss')
@@ -30,10 +27,6 @@ function generate_id() {
 
 function get_uploaded_path(id) {
   return pathlib.join(UPLOAD_DIR, id + '.jpg')
-}
-
-function get_generated_dir(id) {
-  return pathlib.join(GENERATED_DIR, id + '.jpg')
 }
 
 async function do_inference(id) {
@@ -61,51 +54,81 @@ class App {
   push_task(id) {
     this.queue.push(id)
     this.task = this.task.catch(function(e) {
-      console.log(`ERROR: ${e}`)
+      consola.log(`ERROR: ${e}`)
     }).then(async () => {
       this.current = this.queue[0]
       await do_inference(this.current)
       await wait(1)
       this.current = null
       this.queue.shift()
-      console.log('DONE:', this.queue)
+      consola.log('DONE:', this.queue)
     })
-    console.log('CUR: ', this.queue)
+    consola.log('CUR: ', this.queue)
   }
 }
 
 
-const app = new App()
+const koa = new Koa()
+config.dev = koa.env !== 'production'
 
-wss.on('connection', (ws, socket, request) => {
-  console.log('Connected')
-  ws.on('message', (message) => {
-    // console.log('received: %s', message)
-    ws.send(app.to_json())
-  })
-})
+async function start () {
+  const nuxt = new Nuxt(config)
+  const {
+    host = process.env.HOST || '0.0.0.0',
+    port = process.env.PORT || 8080
+  } = nuxt.options.server
 
-router.get('/api/images', async (ctx, next) => {
-  console.log('get images')
-  ctx.body = 'images'
-})
-
-router.post(
-  '/api/upload',
-  upload.single('image'),
-  async (ctx, next) => {
-    const id = generate_id()
-    const p = get_uploaded_path(id)
-    await fs.writeFile(p, ctx.file.buffer)
-    app.push_task(id)
-    ctx.body = 'up'
-    console.log('wrote: ', p)
+  if (config.dev) {
+    const builder = new Builder(nuxt)
+    await builder.build()
+  } else {
+    await nuxt.ready()
   }
-)
 
-koa.use(router.routes())
-koa.use(router.allowedMethods())
-koa.use(koaBody({ multipart: true }))
-koa.listen(API_PORT, () => {
-    console.log('Started')
-})
+  const wss = new WebSocket.Server({ port: WS_PORT })
+  const router = new Router()
+  const upload = multer()
+
+  const app = new App()
+
+  wss.on('connection', (ws, socket, request) => {
+    consola.log('Connected')
+    ws.on('message', (message) => {
+      // consola.log('received: %s', message)
+      ws.send(app.to_json())
+    })
+  })
+
+  router.get('/api/images', async (ctx, next) => {
+    consola.log('get images')
+    ctx.body = 'images'
+  })
+
+  router.post(
+    '/api/upload',
+    upload.single('image'),
+    async (ctx, next) => {
+      const id = generate_id()
+      const p = get_uploaded_path(id)
+      await fs.writeFile(p, ctx.file.buffer)
+      app.push_task(id)
+      ctx.body = 'up'
+      consola.log('wrote: ', p)
+    }
+  )
+
+  router.all('*', (ctx) => {
+    ctx.status = 200
+    ctx.respond = false
+    ctx.req.ctx = ctx
+    nuxt.render(ctx.req, ctx.res)
+  })
+
+  koa.use(router.routes())
+  koa.use(router.allowedMethods())
+  koa.use(koaBody({ multipart: true }))
+  koa.listen(port, host)
+  consola.log('start: ', port)
+}
+
+start()
