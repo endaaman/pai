@@ -1,12 +1,12 @@
-const fs =  require('fs').promises
-const path = require('path')
-// const http = require('http')
-const WebSocket = require('ws')
-const Koa = require('koa')
-const Router = require('@koa/router')
-const fns = require('date-fns')
-const koaBody = require('koa-body')
-const multer = require('@koa/multer')
+import { promises as fs } from 'fs'
+import * as path from 'path'
+import * as http from 'http'
+import * as WebSocket from 'ws'
+import * as Koa from 'koa'
+import * as Router from '@koa/router'
+import * as fns from 'date-fns'
+import * as koaBody from 'koa-body'
+import * as multer from '@koa/multer'
 
 
 const API_PORT = 8080
@@ -29,8 +29,6 @@ class Status {
     })
   }
 }
-
-
 
 function generate_id() {
   return fns.format(new Date(), 'yyyy-MM-dd_HHmmss')

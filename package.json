@@ -2,9 +2,9 @@
   "name": "ai-proxy",
   "version": "1.0.0",
   "description": "",
-  "main": "server/index.mjs",
+  "main": "server/index.js",
   "scripts": {
-    "watch": "nodemon ./server/index.mjs",
+    "watch": "nodemon ./server/index.js",
     "clean": "rimraf dist/*",
     "tsc": "tsc",
     "build": "npm-run-all clean tsc",
