@@ -66,6 +66,7 @@
     </el-aside>
 
     <el-main>
+      <p>{{ name }}</p>
       <nuxt />
     </el-main>
 
@@ -82,6 +83,11 @@ export default {
       activeIndex: '1',
       activeIndex2: '1',
     };
+  },
+  computed: {
+    name() {
+      return this.$route.name
+    },
   },
   methods: {
     handleSelect(key, keyPath) {

@@ -1,8 +1,10 @@
-module.exports = {
-  mode: 'universal',
-  port: 8080,
-  host: '0.0.0.0',
+const host = '127.0.0.1'
+const port = 8080
 
+module.exports = {
+  port, host,
+
+  mode: 'universal',
   /*
   ** Headers of the page
   */
@@ -61,5 +63,5 @@ module.exports = {
     */
     extend (config, ctx) {
     }
-  }
+  },
 }
