@@ -17,6 +17,8 @@ const exec = util.promisify(childProcess.exec)
 
 
 const WS_PORT = 8081
+const API_PORT = 8080
+const HOST = '0.0.0.0'
 const UPLOAD_DIR = 'uploaded/'
 const GENERATED_DIR = 'generated/'
 
@@ -71,12 +73,8 @@ class App {
 const koa = new Koa()
 config.dev = koa.env !== 'production'
 
-async function start () {
+async function start() {
   const nuxt = new Nuxt(config)
-  const {
-    host = process.env.HOST || '0.0.0.0',
-    port = process.env.PORT || 8080
-  } = nuxt.options.server
 
   if (config.dev) {
     const builder = new Builder(nuxt)
@@ -127,8 +125,7 @@ async function start () {
   koa.use(router.routes())
   koa.use(router.allowedMethods())
   koa.use(koaBody({ multipart: true }))
-  koa.listen(port, host)
-  consola.log('start: ', port)
+  koa.listen(API_PORT, HOST)
 }
 
 start()
