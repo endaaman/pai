@@ -4,7 +4,7 @@
   <requires lib="gtk+" version="3.12"/>
   <object class="GtkWindow" id="window">
     <property name="can_focus">False</property>
-    <signal name="delete-event" handler="onDeleteWindow" swapped="no"/>
+    <signal name="delete-event" handler="on_window_delete" swapped="no"/>
     <child>
       <object class="GtkOverlay" id="container1">
         <child type="overlay">
@@ -27,7 +27,7 @@
                 <property name="width_request">200</property>
                 <property name="height_request">80</property>
                 <property name="halign">end</property>
-                <signal name="clicked" handler="buttonQuitClicked" swapped="no"/>
+                <signal name="clicked" handler="on_button_quit_clicked" swapped="no"/>
               </object>
             </child>
             <child>
@@ -37,7 +37,7 @@
                 <property name="width_request">200</property>
                 <property name="height_request">80</property>
                 <property name="halign">end</property>
-                <signal name="clicked" handler="buttonAnalyzeClicked" swapped="no"/>
+                <signal name="clicked" handler="on_button_analyze_clicked" swapped="no"/>
               </object>
             </child>
             <child>
@@ -47,7 +47,7 @@
                 <property name="width_request">200</property>
                 <property name="height_request">80</property>
                 <property name="halign">end</property>
-                <signal name="clicked" handler="buttonCheckClicked" swapped="no"/>
+                <signal name="clicked" handler="on_button_check_clicked" swapped="no"/>
               </object>
             </child>
             <child>

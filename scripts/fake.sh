@@ -15,7 +15,7 @@ BASE=$(echo "$TARGET" | cut -f 1 -d '.')
 
 
 UPLOADED_PATH=$(realpath "$ROOT/uploaded/$TARGET")
-GENERATED_DIR=$(realpath "$ROOT/generated/$BASE")
+GENERATED_DIR=$(realpath "$ROOT/generated/camera/$BASE")
 
 if [ ! -e $UPLOADED_PATH ]; then
   echo "NO FILE: $UPLOADED_PATH"

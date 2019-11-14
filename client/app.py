@@ -107,15 +107,15 @@ class App:
     def set_frame(self, frame):
         self.frame = frame
 
-    def onDeleteWindow(self, *args):
+    def on_window_delete(self, *args):
         if self.ws.is_active():
             self.ws.close()
         Gtk.main_quit(*args)
 
-    def buttonQuitClicked(self, *args):
+    def on_button_quit_clicked(self, *args):
         self.window.close()
 
-    def buttonAnalyzeClicked(self, *args):
+    def on_button_analyze_clicked(self, *args):
         if self.frame is None:
             print('buffer is not loaded')
             return
@@ -127,13 +127,14 @@ class App:
         plt.imsave(buf, self.frame, format='jpg')
         data = buf.getvalue()
         res = requests.post(
-                f'http://{API_HOST}/api/upload',
-                files={'image': ('image.jpg', data, 'image/jpeg', {'Expires': '0'})})
+            f'http://{API_HOST}/api/analyze',
+            {'mode': 'camera'},
+            files={'image': ('image.jpg', data, 'image/jpeg', {'Expires': '0'})})
         print(res)
         # self.set_status(ConnectionStatus.UPLOADING)
         # print(type(binary.tobytes()))
 
-    def buttonCheckClicked(self, *args):
+    def on_button_check_clicked(self, *args):
         response = requests.get(f'http://{API_HOST}/api/images')
         print(response.status_code)
 
