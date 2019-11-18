@@ -2,19 +2,17 @@
 
 ###* PREPARE
 
-TARGET="$1"
+NAME="$1"
 
-if [ -z $TARGET ]; then
-  echo 'NO TARGET'
+if [ -z $NAME ]; then
+  echo 'NO NAME'
   exit 1
 fi
 
 ROOT=$(realpath "$(dirname $0)/..")
+BASE=$(echo "$NAME" | cut -f 1 -d '.')
 
-BASE=$(echo "$TARGET" | cut -f 1 -d '.')
-
-
-UPLOADED_PATH=$(realpath "$ROOT/uploaded/$TARGET")
+UPLOADED_PATH=$(realpath "$ROOT/uploaded/camera/$NAME")
 GENERATED_DIR=$(realpath "$ROOT/generated/camera/$BASE")
 
 if [ ! -e $UPLOADED_PATH ]; then

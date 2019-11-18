@@ -2,6 +2,7 @@ const fs =  require('fs').promises
 const pathlib = require('path')
 const util = require('util')
 const childProcess = require('child_process')
+
 // const http = require('http')
 const WebSocket = require('ws')
 const Koa = require('koa')
@@ -38,22 +39,21 @@ const MODE_DEFS = {
 }
 
 
-function generateId() {
+function generateName() {
   return fns.format(new Date(), 'yyyy-MM-dd_HHmmss')
 }
 
-function getUploadedPath(id) {
-  return pathlib.join(UPLOAD_DIR, id + '.jpg')
+async function putFile(mode, name, buffer) {
+  const dir = pathlib.join(UPLOAD_DIR, mode)
+  await fs.mkdir(dir, { recursive: true })
+  const p =  pathlib.join(dir, name + '.jpg')
+  await fs.writeFile(p, buffer)
 }
 
-function getGeneratedDir(id) {
-  return pathlib.join(GENERATED_DIR, id)
-}
-
-async function doInference(mode, id) {
+async function doInference(mode, name) {
   switch (mode) {
     case 'camera':
-      await exec(`bash scripts/fake.sh ${id}.jpg`)
+      await exec(`bash scripts/fake.sh '${name}.jpg'`)
       break
   }
 }
@@ -66,18 +66,19 @@ function wait(s) {
 
 class Result {
   join(name) {
-    return pathlib.join(GENERATED_DIR, this.mode, this.id, name)
+    return pathlib.join(GENERATED_DIR, this.mode, this.name, name)
   }
-  constructor(mode, id) {
+  constructor(mode, name) {
     this.mode = mode
-    this.id = id
+    this.name = name
     const def = MODE_DEFS[mode]
     this.overlays = def.overlays.map((name) => this.join(name))
     this.original = this.join(def.original)
   }
   serialize() {
     return {
-      id: this.id,
+      name: this.name,
+      mode: this.mode,
       original: this.original,
       overlays: this.overlays,
     }
@@ -111,13 +112,13 @@ async function fetchResults() {
     if (!(await fs.stat(mode_base)).isDirectory()) {
       continue
     }
-    const ids = await fs.readdir(mode_base)
-    for (const id of ids) {
-      const path = pathlib.join(mode_base, id)
+    const names = await fs.readdir(mode_base)
+    for (const name of names) {
+      const path = pathlib.join(mode_base, name)
       if (!(await fs.stat(path)).isDirectory()) {
         continue
       }
-      const r = new Result(mode, id)
+      const r = new Result(mode, name)
       if (!await r.validate()) {
         continue
       }
@@ -146,14 +147,14 @@ class App {
       results: this.results,
     }
   }
-  pushTask(mode, id) {
-    this.queue.push({mode, id})
+  pushTask(mode, name) {
+    this.queue.push({mode, name})
     this.task = this.task.catch(function(e) {
       consola.log(`ERROR: ${e}`)
     }).then(async () => {
       this.current = this.queue[0]
-      const { mode, id } = this.current
-      await doInference(mode, id)
+      const { mode, name } = this.current
+      await doInference(mode, name)
       await wait(1)
       await this.reloadResults()
       this.current = null
@@ -207,15 +208,16 @@ router.post(
   '/api/analyze',
   multer.single('image'),
   async (ctx, next) => {
-    const { mode } = ctx.request.body
+    let { mode, name } = ctx.request.body
     if (!mode in MODE_DEFS) {
       ctx.throw(400, `Invalid mode: ${mode}`)
       return
     }
-    const id = generateId()
-    const p = getUploadedPath(id)
-    await fs.writeFile(p, ctx.file.buffer)
-    app.pushTask(mode, id)
+    if (!name) {
+      name = generateName()
+    }
+    await putFile(mode, name, ctx.file.buffer)
+    app.pushTask(mode, name)
     ctx.status = 201
   }
 )
@@ -242,12 +244,12 @@ koa.use(koaBody({ multipart: true }))
 
 async function start() {
   ///* WITH NUXT
-  // if (config.dev) {
-  //   const builder = new Builder(nuxt)
-  //   await builder.build()
-  // } else {
-  //   await nuxt.ready()
-  // }
+  if (config.dev) {
+    const builder = new Builder(nuxt)
+    await builder.build()
+  } else {
+    await nuxt.ready()
+  }
 
   koa.listen(API_PORT, HOST)
 }
