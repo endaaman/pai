@@ -153,6 +153,10 @@ class App:
         # print(response.status_code)
         self.window_control.show_all()
 
+    def on_window_contorol_delete(self, widget=None, *data):
+        widget.hide()
+        return True
+
     def thread_proc(self, *args):
         self.ws.connect()
         while self.window_main.get_visible():
