@@ -204,6 +204,10 @@ router.get('/api/results', async (ctx, next) => {
   ctx.body = results
 })
 
+router.get('/api/modes', async (ctx, next) => {
+  ctx.body = app.serialize()
+})
+
 router.post(
   '/api/analyze',
   multer.single('image'),
@@ -218,6 +222,7 @@ router.post(
     }
     await putFile(mode, name, ctx.file.buffer)
     app.pushTask(mode, name)
+    ctx.body = app.serialize()
     ctx.status = 201
   }
 )

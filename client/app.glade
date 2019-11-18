@@ -2,7 +2,16 @@
 <!-- Generated with glade 3.18.3 -->
 <interface>
   <requires lib="gtk+" version="3.12"/>
-  <object class="GtkWindow" id="window">
+  <object class="GtkWindow" id="window_control">
+    <property name="can_focus">False</property>
+    <child>
+      <placeholder/>
+    </child>
+    <child>
+      <placeholder/>
+    </child>
+  </object>
+  <object class="GtkWindow" id="window_main">
     <property name="can_focus">False</property>
     <signal name="delete-event" handler="on_window_delete" swapped="no"/>
     <child>
@@ -21,7 +30,7 @@
             <property name="margin_top">20</property>
             <property name="margin_right">20</property>
             <child>
-              <object class="GtkButton" id="buttonQuit">
+              <object class="GtkButton" id="button_quit">
                 <property name="label" translatable="yes">QUIT</property>
                 <property name="opacity">0.7</property>
                 <property name="width_request">200</property>
@@ -31,7 +40,7 @@
               </object>
             </child>
             <child>
-              <object class="GtkButton" id="buttonAnalyze">
+              <object class="GtkButton" id="button_analyze">
                 <property name="label" translatable="yes">ANALYZE</property>
                 <property name="opacity">0.7</property>
                 <property name="width_request">200</property>
@@ -41,7 +50,7 @@
               </object>
             </child>
             <child>
-              <object class="GtkButton" id="buttonCheck">
+              <object class="GtkButton" id="button_check">
                 <property name="label" translatable="yes">CHECK</property>
                 <property name="opacity">0.7</property>
                 <property name="width_request">200</property>
@@ -51,7 +60,7 @@
               </object>
             </child>
             <child>
-              <object class="GtkLabel" id="labelStatus">
+              <object class="GtkLabel" id="label_status">
                 <property name="label" translatable="yes">Initializing...</property>
                 <property name="width_request">200</property>
                 <attributes>

@@ -1,5 +1,6 @@
 generated/
 uploaded/
+Pipfile.lock
 
 # Created by .ignore support plugin (hsz.mobi)
 ### Node template

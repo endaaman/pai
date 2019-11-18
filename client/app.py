@@ -58,7 +58,6 @@ class WS:
     def acquire_status(self, *args):
         try:
             self.ws.send('status')
-            time.sleep(1)
             return self.ws.recv()
         except Exception as e:
             print('ERROR WHEN SENDING OR RECEIVING', e)
@@ -72,26 +71,41 @@ class ServerState:
         self.current = None
         self.connection_status = ConnectionStatus.INIT
 
-    def receive_data(self, d):
+    def mark_connected(self):
+        self.connection_status = ConnectionStatus.CONNECTED
+
+    def overwrite_data(self, d):
         self.queue = d['queue']
         self.current = d['current']
-        self.connection_status = ConnectionStatus.CONNECTED
 
     def reset(self):
         self.queue = []
         self.current = []
         self.connection_status = ConnectionStatus.DISCONNECTED
 
+    def get_message(self):
+        if not self.connection_status is ConnectionStatus.CONNECTED:
+            return self.connection_status.value
+        count = len(self.queue)
+        if count == 0:
+            return 'Connected'
+        if count == 1:
+            return f'Processing...'
+        t = f'1 task is queued' if count == 2 else f'{count - 1} tasks are queued'
+        return f'Processing...({t})'
 
 class App:
     def __init__(self):
         builder = Gtk.Builder()
         builder.add_from_file('client/app.glade')
-        self.window = builder.get_object('window')
-        self.label_status = builder.get_object('labelStatus')
-        self.button_analyze = builder.get_object('buttonAnalyze')
+        self.window_main = builder.get_object('window_main')
+        self.label_status = builder.get_object('label_status')
+        self.button_analyze = builder.get_object('button_analyze')
         self.box = builder.get_object('box')
         self.image = builder.get_object('image')
+        self.window_control = builder.get_object('window_control')
+        self.window_control.set_transient_for(self.window_main)
+
 
         self.capture = cv2.VideoCapture(VIDEO)
         self.ws = WS()
@@ -100,8 +114,7 @@ class App:
         self.frame = None
 
         # window.fullscreen()
-        self.window.resize(800, 450)
-        self.window.show_all()
+        self.window_main.resize(800, 450)
         builder.connect_signals(self)
 
     def set_frame(self, frame):
@@ -113,7 +126,7 @@ class App:
         Gtk.main_quit(*args)
 
     def on_button_quit_clicked(self, *args):
-        self.window.close()
+        self.window_main.close()
 
     def on_button_analyze_clicked(self, *args):
         if self.frame is None:
@@ -131,16 +144,18 @@ class App:
             {'mode': 'camera'},
             files={'image': ('image.jpg', data, 'image/jpeg', {'Expires': '0'})})
         print(res)
+        self.server_state.overwrite_data(res.json())
         # self.set_status(ConnectionStatus.UPLOADING)
         # print(type(binary.tobytes()))
 
     def on_button_check_clicked(self, *args):
-        response = requests.get(f'http://{API_HOST}/api/images')
-        print(response.status_code)
+        # response = requests.get(f'http://{API_HOST}/api/images')
+        # print(response.status_code)
+        self.window_control.show_all()
 
     def thread_proc(self, *args):
         self.ws.connect()
-        while self.window.get_visible():
+        while self.window_main.get_visible():
             # ws.run_forever()
             if not self.ws.is_active():
                 print('Try re-connect')
@@ -156,13 +171,14 @@ class App:
 
             try:
                 data = json.loads(text)
-                self.server_state.receive_data(data)
+                self.server_state.mark_connected()
+                self.server_state.overwrite_data(data)
             except json.JSONDecodeError as e:
                 print(f'PARSE ERROR: {data}')
                 self.ws.close()
 
     def render(self, frame):
-        win_w, win_h = self.window.get_size()
+        win_w, win_h = self.window_main.get_size()
         img_h, img_w, _ = frame.shape
         resized = cv2.resize(frame, None, fx=win_w/img_w, fy=win_h/img_h, interpolation=cv2.INTER_CUBIC)
         pb = GdkPixbuf.Pixbuf.new_from_data(
@@ -183,18 +199,22 @@ class App:
 
         self.render(frame)
 
-        self.label_status.set_text(self.server_state.connection_status.value)
+        self.label_status.set_text(self.server_state.get_message())
         self.button_analyze.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
         return True
 
 
+    def start(self):
+        # websocket.enableTrace(True)
+        thread = threading.Thread(target=self.thread_proc)
+        thread.daemon = True
+        thread.start()
+
+        GLib.idle_add(self.frame_proc)
+        self.window_main.show_all()
+        Gtk.main()
+
+
 app = App()
-
-# websocket.enableTrace(True)
-thread = threading.Thread(target=app.thread_proc)
-thread.daemon = True
-thread.start()
-
-GLib.idle_add(app.frame_proc)
-Gtk.main()
+app.start()
 

@@ -18,6 +18,3 @@ matplotlib = "*"
 numpy = "*"
 pycairo = "*"
 pygobject = "*"
-
-[requires]
-python_version = "3.7"
