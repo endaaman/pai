@@ -173,7 +173,8 @@ interface:
             - '@name': label
             - '@translatable': 'yes'
             - tab 2
-          packing: "\n            \n            \n          "
+          packing:
+
 - object:
     '@class': GtkWindow
     '@id': window_main

@@ -133,7 +133,7 @@ class App {
     this.queue = []
     this.task = Promise.resolve()
     this.current = null
-    this.results = null
+    this.results = []
   }
   watchResults() {
     chokidar.watch(GENERATED_DIR).on('all', (event, path) => {
@@ -147,6 +147,9 @@ class App {
       results: this.results,
     }
   }
+  async load() {
+    await this.loadResults()
+  }
   pushTask(mode, name) {
     this.queue.push({mode, name})
     this.task = this.task.catch(function(e) {
@@ -156,22 +159,21 @@ class App {
       const { mode, name } = this.current
       await doInference(mode, name)
       await wait(1)
-      await this.reloadResults()
+      await this.loadResults()
       this.current = null
       this.queue.shift()
       consola.log('DONE:', this.queue)
     })
     consola.log('CUR: ', this.queue)
   }
-
-  async reloadResults() {
-    this.results = null
+  async loadResults() {
+    this.results = []
     this.results = await fetchResults()
   }
 
   async getResults() {
     if (!this.results) {
-      await this.reloadResults()
+      await this.loadResults()
     }
     return this.results
   }
@@ -255,7 +257,7 @@ async function start() {
   } else {
     await nuxt.ready()
   }
-
+  await app.load()
   koa.listen(API_PORT, HOST)
 }
 

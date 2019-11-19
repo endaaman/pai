@@ -4,6 +4,7 @@ import json
 import time
 import threading
 from enum import Enum, auto
+from collections import namedtuple
 
 import numpy as np
 import cv2
@@ -20,7 +21,8 @@ from gi.repository import Gtk, Gdk, GLib, GdkPixbuf
 
 API_HOST = 'localhost:8080'
 WS_HOST = 'localhost:8081'
-RECONNECT_DURATION = 3
+RECONNECT_DURATION = 7
+STATUS_UPDATE_DURATION = 3
 VIDEO = 0
 
 
@@ -65,22 +67,27 @@ class WS:
             print('ERROR WHEN SENDING OR RECEIVING', e)
         return False
 
+Result = namedtuple('Result', ['name', 'mode', 'original', 'overlays'])
+
 class ServerState:
     def __init__(self):
-        self.queue = []
         self.current = None
+        self.queue = []
+        self.results = []
         self.connection_status = ConnectionStatus.INIT
 
     def mark_connected(self):
         self.connection_status = ConnectionStatus.CONNECTED
 
     def overwrite_data(self, d):
-        self.queue = d['queue']
         self.current = d['current']
+        self.queue = d['queue']
+        self.results = [Result(**r) for r in d['results']]
 
     def reset(self):
+        self.current = None
         self.queue = []
-        self.current = []
+        self.results = []
         self.connection_status = ConnectionStatus.DISCONNECTED
 
     def get_message(self):
@@ -97,27 +104,21 @@ class ServerState:
 class App:
     def __init__(self):
         builder = Gtk.Builder()
-        # builder.add_from_file('client/app.glade')
-        with open("client/app.glade.yml") as inf:
+        with open('client/app.glade.yml') as inf:
             obj = xmlplain.obj_from_yaml(inf)
-            s = io.StringIO()
-            xmlplain.xml_from_obj(obj, s)
-            builder.add_from_string(s.getvalue())
-
+        with open('client/app.glade', 'w') as outf:
+            xmlplain.xml_from_obj(obj, outf)
+        builder.add_from_file('client/app.glade')
         self.window_main = builder.get_object('window_main')
         self.label_status = builder.get_object('label_status')
         self.button_analyze = builder.get_object('button_analyze')
         self.box = builder.get_object('box')
         self.image = builder.get_object('image')
-
         self.window_control = builder.get_object('window_control')
         self.notebook = builder.get_object('notebook')
         self.result_box = builder.get_object('result_box')
         self.result_tree = builder.get_object('result_tree')
         self.result_store = builder.get_object('result_store')
-
-        for i in range(4):
-            self.result_store.append([f'{i}', f'{i**2}', f'{i**3}'])
 
         t = self.notebook
         print(t.get_allocation().width)
@@ -176,6 +177,13 @@ class App:
         widget.hide()
         return True
 
+    def apply_server_data(self):
+        self.result_store.clear()
+        for r in self.server_state.results:
+            self.result_store.append([r.name, r.mode, r.original])
+        self.count += 1
+        return False # do not repeat
+
     def thread_proc(self, *args):
         self.ws.connect()
         while self.window_main.get_visible():
@@ -198,6 +206,8 @@ class App:
                 continue
             self.server_state.mark_connected()
             self.server_state.overwrite_data(data)
+            GLib.idle_add(self.apply_server_data)
+            time.sleep(STATUS_UPDATE_DURATION)
 
     def render(self, frame):
         win_w, win_h = self.window_main.get_size()
@@ -239,4 +249,3 @@ class App:
 
 app = App()
 app.start()
-
