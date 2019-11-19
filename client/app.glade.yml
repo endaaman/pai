@@ -1,0 +1,315 @@
+interface:
+- requires:
+    '@lib': gtk+
+    '@version': '3.12'
+- object:
+    '@class': GtkListStore
+    '@id': result_store
+    columns:
+    - column:
+        '@type': gchararray
+    - column:
+        '@type': gchararray
+    - column:
+        '@type': gchararray
+- object:
+  - '@class': GtkWindow
+  - '@id': window_control
+  - property:
+    - '@name': can_focus
+    - 'False'
+  - property:
+    - '@name': width_request
+    - '600'
+  - property:
+    - '@name': height_request
+    - '400'
+  - property:
+    - '@name': transient_for
+    - window_main
+  - signal:
+      '@handler': on_window_contorol_delete
+      '@name': delete-event
+      '@swapped': 'no'
+  - child:
+      object:
+      - '@class': GtkNotebook
+      - '@id': notebook
+      - property:
+        - '@name': visible
+        - 'True'
+      - property:
+        - '@name': can_focus
+        - 'True'
+      - child:
+          object:
+          - '@class': GtkBox
+          - '@id': result_box
+          - property:
+            - '@name': can_focus
+            - 'False'
+          - property:
+            - '@name': orientation
+            - vertical
+          - property:
+            - '@name': visible
+            - 'True'
+          - child:
+              object:
+              - '@class': GtkTreeView
+              - '@id': result_tree
+              - property:
+                - '@name': can_focus
+                - 'True'
+              - property:
+                - '@name': model
+                - result_store
+              - property:
+                - '@name': visible
+                - 'True'
+              - child:
+                  '@internal-child': selection
+                  object:
+                    '@class': GtkTreeSelection
+                    '@id': treeview-selection1
+              - child:
+                  object:
+                    '@class': GtkTreeViewColumn
+                    property:
+                    - '@name': title
+                    - '@translatable': 'yes'
+                    - column
+                    child:
+                      object:
+                        '@class': GtkCellRendererText
+                        '@id': cellrenderertext1
+                      attributes:
+                        attribute:
+                        - '@name': text
+                        - '0'
+              - child:
+                  object:
+                    '@class': GtkTreeViewColumn
+                    property:
+                    - '@name': title
+                    - '@translatable': 'yes'
+                    - column
+                    child:
+                      object:
+                        '@class': GtkCellRendererText
+                      attributes:
+                        attribute:
+                        - '@name': text
+                        - '1'
+              - child:
+                  object:
+                    '@class': GtkTreeViewColumn
+                    property:
+                    - '@name': title
+                    - '@translatable': 'yes'
+                    - column
+                    child:
+                      object:
+                        '@class': GtkCellRendererText
+                      attributes:
+                        attribute:
+                        - '@name': text
+                        - '2'
+              packing:
+              - property:
+                - '@name': expand
+                - 'False'
+              - property:
+                - '@name': fill
+                - 'True'
+              - property:
+                - '@name': position
+                - '0'
+      - child:
+          '@type': tab
+          object:
+          - '@class': GtkLabel
+          - property:
+            - '@name': visible
+            - 'True'
+          - property:
+            - '@name': label
+            - '@translatable': 'yes'
+            - tab 1
+          packing:
+            property:
+            - '@name': tab_fill
+            - 'False'
+      - child:
+          object:
+          - '@class': GtkBox
+          - property:
+            - '@name': visible
+            - 'True'
+          - property:
+            - '@name': can_focus
+            - 'False'
+          - property:
+            - '@name': orientation
+            - vertical
+          - child:
+              object:
+              - '@class': GtkLabel
+              - property:
+                - '@name': visible
+                - 'True'
+              - property:
+                - '@name': label
+                - '@translatable': 'yes'
+                - TAB 2 CONTENT
+      - child:
+          '@type': tab
+          object:
+          - '@class': GtkLabel
+          - property:
+            - '@name': visible
+            - 'True'
+          - property:
+            - '@name': label
+            - '@translatable': 'yes'
+            - tab 2
+          packing: "\n            \n            \n          "
+- object:
+    '@class': GtkWindow
+    '@id': window_main
+    property:
+    - '@name': can_focus
+    - 'False'
+    signal:
+      '@handler': on_window_delete
+      '@name': delete-event
+      '@swapped': 'no'
+    child:
+      object:
+      - '@class': GtkOverlay
+      - '@id': container1
+      - child:
+          '@type': overlay
+          object:
+          - '@class': GtkImage
+          - '@id': image
+          - property:
+            - '@name': can_focus
+            - 'False'
+          - property:
+            - '@name': stock
+            - gtk-missing-image
+      - child:
+          '@type': overlay
+          object:
+          - '@class': GtkBox
+          - '@id': box
+          - property:
+            - '@name': width_request
+            - '200'
+          - property:
+            - '@name': spacing
+            - '20'
+          - property:
+            - '@name': orientation
+            - vertical
+          - property:
+            - '@name': margin_top
+            - '20'
+          - property:
+            - '@name': margin_right
+            - '20'
+          - child:
+              object:
+              - '@class': GtkButton
+              - '@id': button_quit
+              - property:
+                - '@name': label
+                - '@translatable': 'yes'
+                - QUIT
+              - property:
+                - '@name': opacity
+                - '0.7'
+              - property:
+                - '@name': width_request
+                - '200'
+              - property:
+                - '@name': height_request
+                - '80'
+              - property:
+                - '@name': halign
+                - end
+              - signal:
+                  '@handler': on_button_quit_clicked
+                  '@name': clicked
+                  '@swapped': 'no'
+          - child:
+              object:
+              - '@class': GtkButton
+              - '@id': button_analyze
+              - property:
+                - '@name': label
+                - '@translatable': 'yes'
+                - ANALYZE
+              - property:
+                - '@name': opacity
+                - '0.7'
+              - property:
+                - '@name': width_request
+                - '200'
+              - property:
+                - '@name': height_request
+                - '80'
+              - property:
+                - '@name': halign
+                - end
+              - signal:
+                  '@handler': on_button_analyze_clicked
+                  '@name': clicked
+                  '@swapped': 'no'
+          - child:
+              object:
+              - '@class': GtkButton
+              - '@id': button_check
+              - property:
+                - '@name': label
+                - '@translatable': 'yes'
+                - CHECK
+              - property:
+                - '@name': opacity
+                - '0.7'
+              - property:
+                - '@name': width_request
+                - '200'
+              - property:
+                - '@name': height_request
+                - '80'
+              - property:
+                - '@name': halign
+                - end
+              - signal:
+                  '@handler': on_button_check_clicked
+                  '@name': clicked
+                  '@swapped': 'no'
+          - child:
+              object:
+              - '@class': GtkLabel
+              - '@id': label_status
+              - property:
+                - '@name': label
+                - '@translatable': 'yes'
+                - Initializing...
+              - property:
+                - '@name': width_request
+                - '200'
+              - attributes:
+                - attribute:
+                    '@name': weight
+                    '@value': PANGO_WEIGHT_BOLD
+                - attribute:
+                    '@name': background
+                    '@value': gray
+              packing:
+                property:
+                - '@name': pack_type
+                - end

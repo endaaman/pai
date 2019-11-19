@@ -11,6 +11,7 @@ import requests
 from PIL import Image
 import websocket
 import matplotlib.pyplot as plt
+import xmlplain
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -62,9 +63,7 @@ class WS:
             return self.ws.recv()
         except Exception as e:
             print('ERROR WHEN SENDING OR RECEIVING', e)
-            return False
-        return True
-        # print(f'RECEIVE: {data}')
+        return False
 
 class ServerState:
     def __init__(self):
@@ -98,7 +97,13 @@ class ServerState:
 class App:
     def __init__(self):
         builder = Gtk.Builder()
-        builder.add_from_file('client/app.glade')
+        # builder.add_from_file('client/app.glade')
+        with open("client/app.glade.yml") as inf:
+            obj = xmlplain.obj_from_yaml(inf)
+            s = io.StringIO()
+            xmlplain.xml_from_obj(obj, s)
+            builder.add_from_string(s.getvalue())
+
         self.window_main = builder.get_object('window_main')
         self.label_status = builder.get_object('label_status')
         self.button_analyze = builder.get_object('button_analyze')
