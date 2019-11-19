@@ -53,6 +53,7 @@ class WS:
         except Exception as e:
             print('Failed to connect', e)
             self.ws = None
+            return
         print('Connected')
 
     def acquire_status(self, *args):
@@ -103,9 +104,19 @@ class App:
         self.button_analyze = builder.get_object('button_analyze')
         self.box = builder.get_object('box')
         self.image = builder.get_object('image')
-        self.window_control = builder.get_object('window_control')
-        self.window_control.set_transient_for(self.window_main)
 
+        self.window_control = builder.get_object('window_control')
+        self.notebook = builder.get_object('notebook')
+        self.result_box = builder.get_object('result_box')
+        self.result_tree = builder.get_object('result_tree')
+        self.result_store = builder.get_object('result_store')
+
+        for i in range(4):
+            self.result_store.append([f'{i}', f'{i**2}', f'{i**3}'])
+
+        t = self.notebook
+        print(t.get_allocation().width)
+        print(t.get_allocation().height)
 
         self.capture = cv2.VideoCapture(VIDEO)
         self.ws = WS()
@@ -154,6 +165,9 @@ class App:
         self.window_control.show_all()
 
     def on_window_contorol_delete(self, widget=None, *data):
+        t = self.result_tree
+        print(t.get_allocation().width)
+        print(t.get_allocation().height)
         widget.hide()
         return True
 
@@ -164,22 +178,21 @@ class App:
             if not self.ws.is_active():
                 print('Try re-connect')
                 self.server_state.reset()
-                time.sleep(3)
+                time.sleep(RECONNECT_DURATION)
                 self.ws.connect()
                 continue
-
             text = self.ws.acquire_status()
             if not text:
                 self.ws.close()
                 continue
-
             try:
                 data = json.loads(text)
-                self.server_state.mark_connected()
-                self.server_state.overwrite_data(data)
             except json.JSONDecodeError as e:
                 print(f'PARSE ERROR: {data}')
                 self.ws.close()
+                continue
+            self.server_state.mark_connected()
+            self.server_state.overwrite_data(data)
 
     def render(self, frame):
         win_w, win_h = self.window_main.get_size()
