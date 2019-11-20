@@ -181,7 +181,6 @@ class App:
         self.result_store.clear()
         for r in self.server_state.results:
             self.result_store.append([r.name, r.mode, r.original])
-        self.count += 1
         return False # do not repeat
 
     def thread_proc(self, *args):
@@ -200,7 +199,7 @@ class App:
                 continue
             try:
                 data = json.loads(text)
-            except json.JSONDecodeError as e:
+            except json.JSONDecodeError:
                 print(f'PARSE ERROR: {data}')
                 self.ws.close()
                 continue
@@ -209,10 +208,12 @@ class App:
             GLib.idle_add(self.apply_server_data)
             time.sleep(STATUS_UPDATE_DURATION)
 
-    def render(self, frame):
+    def render(self):
+        if not self.frame:
+            return
         win_w, win_h = self.window_main.get_size()
-        img_h, img_w, _ = frame.shape
-        resized = cv2.resize(frame, None, fx=win_w/img_w, fy=win_h/img_h, interpolation=cv2.INTER_CUBIC)
+        img_h, img_w, _ = self.frame.shape
+        resized = cv2.resize(self.frame, None, fx=win_w/img_w, fy=win_h/img_h, interpolation=cv2.INTER_CUBIC)
         pb = GdkPixbuf.Pixbuf.new_from_data(
                 resized.tostring(),
                 GdkPixbuf.Colorspace.RGB,
@@ -223,14 +224,13 @@ class App:
                 resized.shape[2] * resized.shape[1])
         self.image.set_from_pixbuf(pb)
 
-
     def frame_proc(self, *args):
         ret, bgr = self.capture.read()
-        frame = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-        self.set_frame(frame)
-
-        self.render(frame)
-
+        if ret:
+            self.set_frame(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB))
+        else:
+            pass
+        self.render()
         self.label_status.set_text(self.server_state.get_message())
         self.button_analyze.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
         return True
