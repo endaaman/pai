@@ -1,7 +1,9 @@
 <template>
-  <div>
-    <p>Top</p>
-  </div>
+  <v-row
+    align="center"
+    justify="center"
+  >
+  </v-row>
 </template>
 
 <script>

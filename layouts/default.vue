@@ -1,40 +1,58 @@
 <template>
-<el-container>
-  <el-header>
-    <el-menu
-      :default-active="activeIndex"
-      class="el-menu-demo"
-      mode="horizontal"
-      background-color="#545c64"
-      text-color="#fff"
-      active-text-color="#ffd04b">
-      <el-menu-item index="index"><nuxt-link to="/">Home</nuxt-link></el-menu-item>
-      <el-menu-item index="results"><nuxt-link to="/results">Resusts</nuxt-link></el-menu-item>
-    </el-menu>
-  </el-header>
+  <v-app id="inspire">
+    <v-navigation-drawer
+      v-model="drawer"
+      app
+    >
+      <v-list dense>
+        <v-list-item link nuxt to="/">
+          <v-list-item-action>
+            <v-icon>mdi-home</v-icon>
+          </v-list-item-action>
+          <v-list-item-content>
+            <v-list-item-title>Home</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+        <v-list-item link nuxt to="/results">
+          <v-list-item-action>
+            <v-icon>mdi-contact-mail</v-icon>
+          </v-list-item-action>
+          <v-list-item-content>
+            <v-list-item-title>Results</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+      </v-list>
+    </v-navigation-drawer>
 
-  <el-container>
-    <el-main>
-      <p>{{ activeIndex }}</p>
+    <v-app-bar
+      app
+      color="indigo"
+      dark
+    >
+      <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
+      <v-toolbar-title>Application</v-toolbar-title>
+    </v-app-bar>
+
+    <v-content>
       <nuxt />
-    </el-main>
-
-  </el-container>
-</el-container>
-
+    </v-content>
+    <v-footer
+      color="indigo"
+      app
+    >
+      <span class="white--text"></span>
+    </v-footer>
+  </v-app>
 </template>
 
 <script>
-
 export default {
-  data() {
-    return {
-      activeIndex: '',
-    }
+  props: {
+    source: String,
   },
-  mounted() {
-    this.activeIndex = this.$route.name;
-  }
+  data: () => ({
+    drawer: null,
+  }),
 }
 </script>
 
@@ -56,10 +74,5 @@ html {
 *:after {
   box-sizing: border-box;
   margin: 0;
-}
-
-.el-header {
-  padding-left: 0;
-  padding-right: 0;
 }
 </style>

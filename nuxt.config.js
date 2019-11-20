@@ -46,6 +46,7 @@ module.exports = {
   modules: [
     // Doc: https://axios.nuxtjs.org/usage
     '@nuxtjs/axios',
+    ['@nuxtjs/vuetify', { dark: true, }],
   ],
   /*
   ** Axios module configuration
@@ -57,7 +58,7 @@ module.exports = {
   ** Build configuration
   */
   build: {
-    transpile: [/^element-ui/],
+    // transpile: [/^element-ui/],
     /*
     ** You can extend webpack config here
     */

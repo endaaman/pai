@@ -1,21 +1,20 @@
 <template>
-  <div>
-    <el-table
-      :data="results"
-      style="width: 100%">
-      <el-table-column prop="name" label="ID" width="180" />
-      <el-table-column prop="mode" label="Mode" width="180" />
-
-      <el-table-column
-        prop="original"
-        label="Original">
-        <template slot-scope="scope">
-          <img :src="scope.row.original" width=100/>
-        </el-popover>
-        </template>
-      </el-table-column>
-    </el-table>
-  </div>
+  <v-simple-table>
+    <template v-slot:default>
+      <thead>
+        <tr>
+          <th class="text-left">Name</th>
+          <th class="text-left">Mode</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="r in results" :key="r.name">
+          <td>{{ r.name }}</td>
+          <td>{{ r.mode }}</td>
+        </tr>
+      </tbody>
+    </template>
+  </v-simple-table>
 </template>
 
 <script>
@@ -28,6 +27,10 @@ export default {
   computed: {
     ...mapState('result', ['results']),
   },
+  mounted() {
+    console.log(this.results)
+  },
+
 }
 </script>
 
