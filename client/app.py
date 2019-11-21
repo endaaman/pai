@@ -104,25 +104,24 @@ class ServerState:
 class App:
     def __init__(self):
         builder = Gtk.Builder()
-        with open('client/app.glade.yml') as inf:
-            obj = xmlplain.obj_from_yaml(inf)
-        with open('client/app.glade', 'w') as outf:
-            xmlplain.xml_from_obj(obj, outf)
+        # with open('client/app.glade.yml') as inf:
+        #     obj = xmlplain.obj_from_yaml(inf)
+        # with open('client/app.glade', 'w') as outf:
+        #     xmlplain.xml_from_obj(obj, outf)
         builder.add_from_file('client/app.glade')
+        self.result_store = builder.get_object('result_store')
+        self.context_menu = builder.get_object('context_menu')
+
         self.window_main = builder.get_object('window_main')
         self.label_status = builder.get_object('label_status')
-        self.button_analyze = builder.get_object('button_analyze')
         self.box = builder.get_object('box')
         self.image = builder.get_object('image')
+
         self.window_control = builder.get_object('window_control')
         self.notebook = builder.get_object('notebook')
         self.result_box = builder.get_object('result_box')
         self.result_tree = builder.get_object('result_tree')
-        self.result_store = builder.get_object('result_store')
 
-        t = self.notebook
-        print(t.get_allocation().width)
-        print(t.get_allocation().height)
 
         self.capture = cv2.VideoCapture(VIDEO)
         self.ws = WS()
@@ -130,22 +129,46 @@ class App:
         self.server_state = ServerState()
         self.frame = None
 
+        self.__last_triggered_time = None
+
         # window.fullscreen()
-        self.window_main.resize(800, 450)
+        # self.window_main.resize(800, 450)
         builder.connect_signals(self)
+
 
     def set_frame(self, frame):
         self.frame = frame
 
-    def on_window_delete(self, *args):
+    def on_window_main_delete(self, *args):
         if self.ws.is_active():
             self.ws.close()
         Gtk.main_quit(*args)
 
-    def on_button_quit_clicked(self, *args):
+    def on_window_main_click(self, widget, event):
+        ###* GUARD START
+        if event.type != Gdk.EventType.BUTTON_PRESS:
+            return
+        if self.__last_triggered_time == event.time:
+            return
+        self.__last_triggered_time = event.time
+        ###* GUARD END
+
+        if event.button == 1:
+            self.window_control.show_all()
+            return
+
+        if event.button == 3:
+            self.context_menu.popup(None, None, None, None, event.button, event.time)
+            return
+
+    def on_menu_item_quit_activate(self, *args):
         self.window_main.close()
 
-    def on_button_analyze_clicked(self, *args):
+    def on_menu_item_status_toggler_activate(self, widget, *args):
+        widget.set_active(not widget.get_active)
+
+    def on_menu_item_analyze_activate(self, *args):
+        print('analyze')
         if self.frame is None:
             print('buffer is not loaded')
             return
@@ -165,16 +188,12 @@ class App:
         # self.set_status(ConnectionStatus.UPLOADING)
         # print(type(binary.tobytes()))
 
-    def on_button_check_clicked(self, *args):
-        # response = requests.get(f'http://{API_HOST}/api/images')
-        # print(response.status_code)
-        self.window_control.show_all()
+    def on_window_contorol_key_release(self, widget, event, *args):
+       if event.keyval == Gdk.KEY_Escape:
+            self.window_control.close()
 
-    def on_window_contorol_delete(self, widget=None, *data):
-        t = self.result_tree
-        print(t.get_allocation().width)
-        print(t.get_allocation().height)
-        widget.hide()
+    def on_window_contorol_delete(self, *args):
+        self.window_control.hide()
         return True
 
     def apply_server_data(self):
@@ -232,7 +251,7 @@ class App:
             pass
         self.render()
         self.label_status.set_text(self.server_state.get_message())
-        self.button_analyze.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
+        # self.button_analyze.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
         return True
 
 

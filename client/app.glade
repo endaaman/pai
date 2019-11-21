@@ -8,12 +8,13 @@
       <column type="gchararray"></column>
     </columns>
   </object>
-  <object class="GtkWindow" id="window_control">
+   <object class="GtkWindow" id="window_control">
     <property name="can_focus">False</property>
     <property name="width_request">600</property>
     <property name="height_request">400</property>
     <property name="transient_for">window_main</property>
-    <signal handler="on_window_contorol_delete" name="delete-event" swapped="no"></signal>
+    <signal handler="on_window_contorol_key_release" name="key-release-event" swapped="no" />
+    <signal handler="on_window_contorol_delete" name="delete-event" swapped="no" />
     <child>
       <object class="GtkNotebook" id="notebook">
         <property name="visible">True</property>
@@ -107,12 +108,43 @@
   </object>
   <object class="GtkWindow" id="window_main">
     <property name="can_focus">False</property>
-    <signal handler="on_window_delete" name="delete-event" swapped="no"></signal>
+    <property name="width_request">800</property>
+    <property name="height_request">500</property>
+    <signal name="delete-event" handler="on_window_main_delete" swapped="no" />
+    <signal name="button-press-event" handler="on_window_main_click" swapped="no" />
     <child>
+      <object class="GtkMenu" id="context_menu">
+        <child>
+          <object class="GtkMenuItem">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Analyze</property>
+            <signal name="activate" handler="on_menu_item_analyze_activate" swapped="no"/>
+          </object>
+        </child>
+        <child>
+          <object class="GtkCheckMenuItem">
+            <property name="visible">True</property>
+            <property name="active">True</property>
+            <property name="label" translatable="yes">Show status</property>
+            <signal name="activate" handler="on_menu_item_status_toggler_activate" swapped="no"/>
+          </object>
+        </child>
+        <child>
+          <object class="GtkSeparatorMenuItem">
+            <property name="visible">True</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkMenuItem">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Quit</property>
+            <signal name="activate" handler="on_menu_item_quit_activate" swapped="no"/>
+          </object>
+        </child>
+      </object>
       <object class="GtkOverlay" id="container1">
         <child type="overlay">
           <object class="GtkImage" id="image">
-            <property name="can_focus">False</property>
             <property name="stock">gtk-missing-image</property>
           </object>
         </child>
@@ -123,36 +155,6 @@
             <property name="orientation">vertical</property>
             <property name="margin_top">20</property>
             <property name="margin_right">20</property>
-            <child>
-              <object class="GtkButton" id="button_quit">
-                <property name="label" translatable="yes">QUIT</property>
-                <property name="opacity">0.7</property>
-                <property name="width_request">200</property>
-                <property name="height_request">80</property>
-                <property name="halign">end</property>
-                <signal handler="on_button_quit_clicked" name="clicked" swapped="no"></signal>
-              </object>
-            </child>
-            <child>
-              <object class="GtkButton" id="button_analyze">
-                <property name="label" translatable="yes">ANALYZE</property>
-                <property name="opacity">0.7</property>
-                <property name="width_request">200</property>
-                <property name="height_request">80</property>
-                <property name="halign">end</property>
-                <signal handler="on_button_analyze_clicked" name="clicked" swapped="no"></signal>
-              </object>
-            </child>
-            <child>
-              <object class="GtkButton" id="button_check">
-                <property name="label" translatable="yes">CHECK</property>
-                <property name="opacity">0.7</property>
-                <property name="width_request">200</property>
-                <property name="height_request">80</property>
-                <property name="halign">end</property>
-                <signal handler="on_button_check_clicked" name="clicked" swapped="no"></signal>
-              </object>
-            </child>
             <child>
               <object class="GtkLabel" id="label_status">
                 <property name="label" translatable="yes">Initializing...</property>

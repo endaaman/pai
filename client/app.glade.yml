@@ -12,6 +12,21 @@ interface:
         '@type': gchararray
     - column:
         '@type': gchararray
+
+- object:
+  '@class': GtkMenu
+  '@id': menu1
+  - child:
+    object:
+      '@class': GtkMenuItem
+      '@id': item1
+  #     - property:
+  #       - '@name': label
+  #       - 'quit'
+  #     - signal:
+  #       '@handler': on_menu_quit_click
+  #       '@name': delete-event
+
 - object:
   - '@class': GtkWindow
   - '@id': window_control
@@ -182,7 +197,7 @@ interface:
     - '@name': can_focus
     - 'False'
     signal:
-      '@handler': on_window_delete
+      '@handler': on_window_main_delete
       '@name': delete-event
       '@swapped': 'no'
     child:
