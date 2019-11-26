@@ -122,13 +122,20 @@
           </object>
         </child>
         <child>
-          <object class="GtkCheckMenuItem">
+          <object class="GtkMenuItem">
             <property name="visible">True</property>
-            <property name="active">True</property>
-            <property name="label" translatable="yes">Show status</property>
-            <signal name="activate" handler="on_menu_item_status_toggler_activate" swapped="no"/>
+            <property name="label" translatable="yes">Menu</property>
+            <signal name="activate" handler="on_menu_item_menu_activate" swapped="no"/>
           </object>
         </child>
+        <!-- <child> -->
+        <!--   <object class="GtkCheckMenuItem" id="menu_item_status_toggler"> -->
+        <!--     <property name="visible">True</property> -->
+        <!--     <property name="active">True</property> -->
+        <!--     <property name="label" translatable="yes">Show status</property> -->
+        <!--     <signal name="activate" handler="on_menu_item_status_toggler_activate" swapped="no"/> -->
+        <!--   </object> -->
+        <!-- </child> -->
         <child>
           <object class="GtkSeparatorMenuItem">
             <property name="visible">True</property>
@@ -159,64 +166,46 @@
               </packing>
             </child>
             <child>
-              <object class="GtkBox">
-                <!-- <style> -->
-                <!--   <class name="red" /> -->
-                <!-- </style> -->
+
+              <object class="GtkGrid" id="grid_status">
                 <property name="name">box-status</property>
-                <property name="orientation">vertical</property>
-
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkBox">
-                    <child>
-                      <object class="GtkBox">
-                        <child>
-                          <object class="GtkLabel">
-                            <property name="label" translatable="yes">Connection</property>
-                          </object>
-                        </child>
-                        <child>
-                          <object class="GtkLabel" id="label_status">
-                            <property name="margin_left">8</property>
-                            <property name="label" translatable="yes">Initializing...</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-
-                <child>
-                  <object class="GtkBox">
-                    <child>
-                      <object class="GtkBox">
-                        <child>
-                          <object class="GtkLabel">
-                            <property name="label" translatable="yes">Tasks</property>
-                          </object>
-                        </child>
-                        <child>
-                          <object class="GtkLabel">
-                            <property name="margin_left">8</property>
-                            <property name="label" translatable="yes">3</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-
-                <child>
-                  <object class="GtkBox">
-                    <!-- <style> -->
-                    <!--   <class name="blue" /> -->
-                    <!-- </style> -->
-                    <property name="name">box-status-button-dummy</property>
+                  <object class="GtkLabel">
+                    <property name="label" translatable="yes">Connection</property>
                   </object>
                   <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
-                    <property name="position">99</property>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label_status_connection">
+                    <property name="label" translatable="yes">Initializing...</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="top_attach">0</property>
+                  </packing>
+                </child>
+
+                <child>
+                  <object class="GtkLabel">
+                    <property name="label" translatable="yes">Tasks</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label_status_task_count">
+                    <property name="label" translatable="yes">0</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="top_attach">1</property>
                   </packing>
                 </child>
 

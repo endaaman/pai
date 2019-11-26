@@ -14,10 +14,10 @@
   background-color: transparent;
 }
 
-#box-status > *:not(#box-status-button-dummy) {
-  background-color: rgba(0, 0, 0, 0.5);
+#box-status {
 }
 
-/* #box-status { */
-/*   background-color: rgba(0, 0, 0, 0.5); */
-/* } */
+#box-status label {
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 0 4px;
+}

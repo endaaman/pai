@@ -89,7 +89,7 @@ class ServerState:
         self.results = []
         self.connection_status = ConnectionStatus.DISCONNECTED
 
-    def get_message(self):
+    def get_connection_message(self):
         if not self.connection_status is ConnectionStatus.CONNECTED:
             return self.connection_status.value
         count = len(self.queue)
@@ -99,6 +99,11 @@ class ServerState:
             return f'Processing...'
         t = f'1 task is queued' if count == 2 else f'{count - 1} tasks are queued'
         return f'Processing...({t})'
+
+    def get_task_count_message(self):
+        if not self.connection_status is ConnectionStatus.CONNECTED:
+            return 'n/a'
+        return str(len(self.queue))
 
 class App:
     def __init__(self):
@@ -110,8 +115,9 @@ class App:
         builder.add_from_file('client/app.glade')
 
         self.window_main = builder.get_object('window_main')
-        self.label_status = builder.get_object('label_status')
-        self.box = builder.get_object('box')
+        self.grid_status = builder.get_object('grid_status')
+        self.label_status_connection = builder.get_object('label_status_connection')
+        self.label_status_task_count = builder.get_object('label_status_task_count')
         self.image = builder.get_object('image')
 
         self.window_control = builder.get_object('window_control')
@@ -142,6 +148,9 @@ class App:
     def set_frame(self, frame):
         self.frame = frame
 
+    def toggle_grid_status(self):
+        self.grid_status.set_visible(not self.grid_status.get_visible())
+
     def on_window_main_delete(self, *args):
         if self.ws.is_active():
             self.ws.close()
@@ -157,18 +166,13 @@ class App:
         ###* GUARD END
 
         if event.button == 1:
-            self.window_control.show_all()
+            self.toggle_grid_status()
             return
 
         if event.button == 3:
             self.menu.popup(None, None, None, None, event.button, event.time)
             return
 
-    def on_menu_item_quit_activate(self, *args):
-        self.window_main.close()
-
-    def on_menu_item_status_toggler_activate(self, widget, *args):
-        widget.set_active(not widget.get_active)
 
     def on_menu_item_analyze_activate(self, *args):
         print('analyze')
@@ -190,6 +194,15 @@ class App:
         self.server_state.overwrite_data(res.json())
         # self.set_status(ConnectionStatus.UPLOADING)
         # print(type(binary.tobytes()))
+
+    def on_menu_item_menu_activate(self, *args):
+        self.window_control.show_all()
+
+    # def on_menu_item_status_toggler_activate(self, widget, *args):
+    #     self.toggle_grid_status()
+
+    def on_menu_item_quit_activate(self, *args):
+        self.window_main.close()
 
     def on_window_contorol_key_release(self, widget, event, *args):
        if event.keyval == Gdk.KEY_Escape:
@@ -255,8 +268,10 @@ class App:
                 f = cv2.imread('assets/images/shako.jpg')
                 self.set_frame(cv2.cvtColor(f, cv2.COLOR_BGR2RGB))
         self.render()
-        self.label_status.set_text(self.server_state.get_message())
+
+        self.label_status_connection.set_text(self.server_state.get_connection_message())
         self.menu_item_analyze.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
+        self.label_status_task_count.set_text(self.server_state.get_task_count_message())
         return True
 
 
