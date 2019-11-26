@@ -105,6 +105,29 @@ class ServerState:
             return 'n/a'
         return str(len(self.queue))
 
+class FPS:
+    def __init__(self):
+        self.SAMPLE_COUNT = 200
+        self.count = 0
+        self.start_time = None
+        self.value = 0
+
+    def get_time(self):
+        return time.time() * 1000
+
+    def update(self):
+        if self.count is 0:
+            self.start_time = self.get_time()
+            self.count += 1
+            return
+        if self.count is self.SAMPLE_COUNT:
+            elapsed = self.get_time() - self.start_time
+            self.value = 1000 / ((elapsed / self.SAMPLE_COUNT))
+            self.count = 0
+            return
+        self.count += 1
+
+
 class App:
     def __init__(self):
         builder = Gtk.Builder()
@@ -128,9 +151,9 @@ class App:
         self.menu = builder.get_object('menu')
         self.menu_item_analyze = builder.get_object('menu_item_analyze')
 
-
         self.capture = cv2.VideoCapture(VIDEO)
         self.ws = WS()
+        self.fps = FPS()
 
         self.server_state = ServerState()
         self.frame = None
@@ -261,6 +284,7 @@ class App:
 
     def frame_proc(self, *args):
         ret, bgr = self.capture.read()
+        self.fps.update()
         if ret:
             self.set_frame(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB))
         else:
@@ -270,8 +294,8 @@ class App:
         self.render()
 
         self.label_status_connection.set_text(self.server_state.get_connection_message())
+        self.label_status_task_count.set_text(str(self.fps.value))
         self.menu_item_analyze.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
-        self.label_status_task_count.set_text(self.server_state.get_task_count_message())
         return True
 
 
