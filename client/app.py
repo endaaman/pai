@@ -28,10 +28,9 @@ VIDEO = 0
 
 class ConnectionStatus(Enum):
     INIT = 'Initializing...'
-    DISCONNECTED = 'Disconnected to server'
+    DISCONNECTED = 'Disconnected'
     CONNECTED = 'Connected'
     UNKNOWN = '????'
-
 
 class WS:
     def __init__(self):
@@ -109,8 +108,6 @@ class App:
         # with open('client/app.glade', 'w') as outf:
         #     xmlplain.xml_from_obj(obj, outf)
         builder.add_from_file('client/app.glade')
-        self.result_store = builder.get_object('result_store')
-        self.context_menu = builder.get_object('context_menu')
 
         self.window_main = builder.get_object('window_main')
         self.label_status = builder.get_object('label_status')
@@ -119,8 +116,11 @@ class App:
 
         self.window_control = builder.get_object('window_control')
         self.notebook = builder.get_object('notebook')
-        self.result_box = builder.get_object('result_box')
         self.result_tree = builder.get_object('result_tree')
+        self.result_store = builder.get_object('result_store')
+
+        self.menu = builder.get_object('menu')
+        self.menu_item_analyze = builder.get_object('menu_item_analyze')
 
 
         self.capture = cv2.VideoCapture(VIDEO)
@@ -132,9 +132,12 @@ class App:
         self.__last_triggered_time = None
 
         # window.fullscreen()
-        # self.window_main.resize(800, 450)
         builder.connect_signals(self)
 
+        provider = Gtk.CssProvider()
+        provider.load_from_path('client/app.css')
+        screen = Gdk.Display.get_default_screen(Gdk.Display.get_default())
+        Gtk.StyleContext.add_provider_for_screen(screen, provider, 600)
 
     def set_frame(self, frame):
         self.frame = frame
@@ -158,7 +161,7 @@ class App:
             return
 
         if event.button == 3:
-            self.context_menu.popup(None, None, None, None, event.button, event.time)
+            self.menu.popup(None, None, None, None, event.button, event.time)
             return
 
     def on_menu_item_quit_activate(self, *args):
@@ -228,7 +231,7 @@ class App:
             time.sleep(STATUS_UPDATE_DURATION)
 
     def render(self):
-        if not self.frame:
+        if not np.any(self.frame):
             return
         win_w, win_h = self.window_main.get_size()
         img_h, img_w, _ = self.frame.shape
@@ -248,10 +251,12 @@ class App:
         if ret:
             self.set_frame(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB))
         else:
-            pass
+            if not np.any(self.frame):
+                f = cv2.imread('assets/images/shako.jpg')
+                self.set_frame(cv2.cvtColor(f, cv2.COLOR_BGR2RGB))
         self.render()
         self.label_status.set_text(self.server_state.get_message())
-        # self.button_analyze.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
+        self.menu_item_analyze.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
         return True
 
 

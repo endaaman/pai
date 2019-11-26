@@ -20,7 +20,7 @@
         <property name="visible">True</property>
         <property name="can_focus">True</property>
         <child>
-          <object class="GtkBox" id="result_box">
+          <object class="GtkBox">
             <property name="can_focus">False</property>
             <property name="orientation">vertical</property>
             <property name="visible">True</property>
@@ -113,9 +113,9 @@
     <signal name="delete-event" handler="on_window_main_delete" swapped="no" />
     <signal name="button-press-event" handler="on_window_main_click" swapped="no" />
     <child>
-      <object class="GtkMenu" id="context_menu">
+      <object class="GtkMenu" id="menu">
         <child>
-          <object class="GtkMenuItem">
+          <object class="GtkMenuItem" id="menu_item_analyze">
             <property name="visible">True</property>
             <property name="label" translatable="yes">Analyze</property>
             <signal name="activate" handler="on_menu_item_analyze_activate" swapped="no"/>
@@ -142,31 +142,85 @@
           </object>
         </child>
       </object>
-      <object class="GtkOverlay" id="container1">
+      <object class="GtkOverlay">
         <child type="overlay">
           <object class="GtkImage" id="image">
             <property name="stock">gtk-missing-image</property>
           </object>
         </child>
         <child type="overlay">
-          <object class="GtkBox" id="box">
-            <property name="width_request">200</property>
-            <property name="spacing">20</property>
-            <property name="orientation">vertical</property>
-            <property name="margin_top">20</property>
-            <property name="margin_right">20</property>
+          <object class="GtkBox">
             <child>
-              <object class="GtkLabel" id="label_status">
-                <property name="label" translatable="yes">Initializing...</property>
-                <property name="width_request">200</property>
-                <attributes>
-                  <attribute name="weight" value="PANGO_WEIGHT_BOLD"></attribute>
-                  <attribute name="background" value="gray"></attribute>
-                </attributes>
+              <object class="GtkBox">
               </object>
               <packing>
-                <property name="pack_type">end</property>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
               </packing>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <!-- <style> -->
+                <!--   <class name="red" /> -->
+                <!-- </style> -->
+                <property name="name">box-status</property>
+                <property name="orientation">vertical</property>
+
+                <child>
+                  <object class="GtkBox">
+                    <child>
+                      <object class="GtkBox">
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="label" translatable="yes">Connection</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="label_status">
+                            <property name="margin_left">8</property>
+                            <property name="label" translatable="yes">Initializing...</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+
+                <child>
+                  <object class="GtkBox">
+                    <child>
+                      <object class="GtkBox">
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="label" translatable="yes">Tasks</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="margin_left">8</property>
+                            <property name="label" translatable="yes">3</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+
+                <child>
+                  <object class="GtkBox">
+                    <!-- <style> -->
+                    <!--   <class name="blue" /> -->
+                    <!-- </style> -->
+                    <property name="name">box-status-button-dummy</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">99</property>
+                  </packing>
+                </child>
+
+              </object>
             </child>
           </object>
         </child>

@@ -1,0 +1,23 @@
+.red {
+  background-color: red;
+}
+
+.blue {
+  background-color: blue;
+}
+
+.green {
+  background-color: green;
+}
+
+.transparent {
+  background-color: transparent;
+}
+
+#box-status > *:not(#box-status-button-dummy) {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* #box-status { */
+/*   background-color: rgba(0, 0, 0, 0.5); */
+/* } */
