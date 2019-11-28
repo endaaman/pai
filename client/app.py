@@ -16,14 +16,21 @@ import xmlplain
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, GLib, GdkPixbuf
+gi.require_version('Gst', '1.0')
+from gi.repository import Gtk, Gdk, GdkX11, GLib, GdkPixbuf, Gst
+
+
 
 
 API_HOST = 'localhost:8080'
 WS_HOST = 'localhost:8081'
 RECONNECT_DURATION = 7
-STATUS_UPDATE_DURATION = 3
+STATUS_UPDATE_DURATION = 7
 VIDEO = 0
+FPS_SAMPLE_COUNT = 60
+FPS = 30
+
+VIDO_SRC = 'v4l2src'
 
 
 class ConnectionStatus(Enum):
@@ -105,31 +112,89 @@ class ServerState:
             return 'n/a'
         return str(len(self.queue))
 
-class FPS:
+class Fps:
     def __init__(self):
-        self.SAMPLE_COUNT = 200
         self.count = 0
         self.start_time = None
         self.value = 0
+        self.calculated = False
 
     def get_time(self):
         return time.time() * 1000
 
+    def get_value(self):
+        return self.value
+
+    def get_label(self):
+        if not self.calculated:
+            return 'n/a'
+        return f'{self.value:.2f}'
+
     def update(self):
-        if self.count is 0:
+        if self.count == 0:
             self.start_time = self.get_time()
             self.count += 1
             return
-        if self.count is self.SAMPLE_COUNT:
+        if self.count == FPS_SAMPLE_COUNT:
             elapsed = self.get_time() - self.start_time
-            self.value = 1000 / ((elapsed / self.SAMPLE_COUNT))
+            self.value = 1000 / ((elapsed / FPS_SAMPLE_COUNT))
             self.count = 0
+            self.calculated = True
             return
         self.count += 1
 
 
+
+class GstWidget(Gtk.Box):
+    def __init__(self, src='videotestsrc'):
+        super().__init__()
+        self.connect('realize', self._on_realize)
+        self._bin = Gst.parse_bin_from_description(src, True)
+
+    def _on_realize(self, widget):
+        pipeline = Gst.Pipeline()
+        factory = pipeline.get_factory()
+        gtksink = factory.make('gtksink')
+        pipeline.add(gtksink)
+        pipeline.add(self._bin)
+        self._bin.link(gtksink)
+        self.pack_start(gtksink.props.widget, True, True, 0)
+        gtksink.props.widget.show()
+        pipeline.set_state(Gst.State.PLAYING)
+        bus = pipeline.get_bus()
+        bus.add_signal_watch()
+        bus.enable_sync_message_emission()
+        bus.connect('message', self.on_message)
+        bus.connect('sync-message::element', self.on_sync_message)
+
+    def on_message(self, bus, message):
+        t = message.type
+        if t == Gst.MessageType.EOS:
+            self.player.set_state(Gst.State.NULL)
+            print('EOS')
+            return
+        if t == Gst.MessageType.ERROR:
+            err, debug = message.parse_error()
+            print('Error: %s' % err, debug)
+            self.player.set_state(Gst.State.NULL)
+
+    def on_sync_message(self, bus, message):
+        s = message.get_structure()
+        if s is None:
+            print('structure is None')
+            return
+        print('structure name: ', s.get_name())
+        message_name = s.get_name()
+        if message_name == 'prepare-window-handle':
+            imagesink = message.src
+            imagesink.set_property('force-aspect-ratio', True)
+            # imagesink.set_xwindow_id(self.drawing_area.xid)
+
+
+
 class App:
     def __init__(self):
+        Gst.init(None)
         builder = Gtk.Builder()
         # with open('client/app.glade.yml') as inf:
         #     obj = xmlplain.obj_from_yaml(inf)
@@ -141,6 +206,7 @@ class App:
         self.grid_status = builder.get_object('grid_status')
         self.label_status_connection = builder.get_object('label_status_connection')
         self.label_status_task_count = builder.get_object('label_status_task_count')
+        self.overlay = builder.get_object('overlay')
         self.image = builder.get_object('image')
 
         self.window_control = builder.get_object('window_control')
@@ -151,13 +217,18 @@ class App:
         self.menu = builder.get_object('menu')
         self.menu_item_analyze = builder.get_object('menu_item_analyze')
 
-        self.capture = cv2.VideoCapture(VIDEO)
-        self.ws = WS()
-        self.fps = FPS()
+        self.gst =  GstWidget('v4l2src ! autovideosink')
+        # self.gst.set_size_request(200, 200)
+        self.overlay.add_overlay(self.gst)
+        self.overlay.reorder_overlay(self.gst, 0)
 
+        self.capture = cv2.VideoCapture(VIDEO)
+        # self.player = Gst.parse_launch('v4l2src ! autovideosink')
+
+        self.ws = WS()
+        self.fps = Fps()
         self.server_state = ServerState()
         self.frame = None
-
         self.__last_triggered_time = None
 
         # window.fullscreen()
@@ -167,6 +238,7 @@ class App:
         provider.load_from_path('client/app.css')
         screen = Gdk.Display.get_default_screen(Gdk.Display.get_default())
         Gtk.StyleContext.add_provider_for_screen(screen, provider, 600)
+
 
     def set_frame(self, frame):
         self.frame = frame
@@ -198,7 +270,6 @@ class App:
 
 
     def on_menu_item_analyze_activate(self, *args):
-        print('analyze')
         if self.frame is None:
             print('buffer is not loaded')
             return
@@ -284,18 +355,21 @@ class App:
 
     def frame_proc(self, *args):
         ret, bgr = self.capture.read()
-        self.fps.update()
         if ret:
             self.set_frame(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB))
         else:
+            d = 1.0 / FPS
+            time.sleep(d)
             if not np.any(self.frame):
                 f = cv2.imread('assets/images/shako.jpg')
                 self.set_frame(cv2.cvtColor(f, cv2.COLOR_BGR2RGB))
-        self.render()
+        # self.render()
+        self.fps.update()
 
         self.label_status_connection.set_text(self.server_state.get_connection_message())
-        self.label_status_task_count.set_text(str(self.fps.value))
+        self.label_status_task_count.set_text(self.fps.get_label())
         self.menu_item_analyze.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
+
         return True
 
 
@@ -305,6 +379,7 @@ class App:
         thread.daemon = True
         thread.start()
 
+        # self.player.set_state(Gst.State.PLAYING)
         GLib.idle_add(self.frame_proc)
         self.window_main.show_all()
         Gtk.main()

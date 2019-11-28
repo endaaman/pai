@@ -10,7 +10,6 @@ client = "python3 ./client/app.py"
 pylint = "*"
 
 [packages]
-opencv-python = "*"
 requests = "*"
 pillow = "*"
 websocket-client = "*"
@@ -19,3 +18,4 @@ numpy = "*"
 pycairo = "*"
 pygobject = "*"
 xmlplain = "*"
+opencv-python = "*"

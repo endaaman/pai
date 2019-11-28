@@ -149,12 +149,16 @@
           </object>
         </child>
       </object>
-      <object class="GtkOverlay">
+      <object class="GtkOverlay" id="overlay">
+
         <child type="overlay">
           <object class="GtkImage" id="image">
+            <property name="visible">False</property>
+            <property name="can_focus">False</property>
             <property name="stock">gtk-missing-image</property>
           </object>
         </child>
+
         <child type="overlay">
           <object class="GtkBox">
             <child>
@@ -192,7 +196,7 @@
 
                 <child>
                   <object class="GtkLabel">
-                    <property name="label" translatable="yes">Tasks</property>
+                    <property name="label" translatable="yes">FPS</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
