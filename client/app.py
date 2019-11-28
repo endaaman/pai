@@ -272,24 +272,20 @@ class App:
 
 
     def on_menu_item_analyze_activate(self, *args):
-        if self.frame is None:
-            print('buffer is not loaded')
-            return
-
-        self.gst_widget.take_snapshot()
-        return
-
+        snapshot = self.gst_widget.take_snapshot()
         # result, data = cv2.imencode('.jpg', current_frame)
         # if not result:
         #     print('could not encode image')
         #     return
-        buf = io.BytesIO()
-        plt.imsave(buf, self.frame, format='jpg')
-        data = buf.getvalue()
+        is_success, raw = cv2.imencode('.jpg', snapshot)
+        if not is_success:
+            print('ERROR')
+            return
+        buffer = io.BytesIO(raw)
         res = requests.post(
             f'http://{API_HOST}/api/analyze',
             {'mode': 'camera'},
-            files={'image': ('image.jpg', data, 'image/jpeg', {'Expires': '0'})})
+            files={'image': ('image.jpg', buffer.getvalue(), 'image/jpeg', {'Expires': '0'})})
         print(res)
         self.server_state.overwrite_data(res.json())
         # self.set_status(ConnectionStatus.UPLOADING)
