@@ -11,8 +11,6 @@ import cv2
 import requests
 from PIL import Image
 import websocket
-import matplotlib.pyplot as plt
-import xmlplain
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -199,10 +197,6 @@ class App:
     def __init__(self):
         Gst.init(None)
         builder = Gtk.Builder()
-        # with open('client/app.glade.yml') as inf:
-        #     obj = xmlplain.obj_from_yaml(inf)
-        # with open('client/app.glade', 'w') as outf:
-        #     xmlplain.xml_from_obj(obj, outf)
         builder.add_from_file('client/app.glade')
 
         self.window_main = builder.get_object('window_main')
@@ -219,7 +213,7 @@ class App:
         self.menu = builder.get_object('menu')
         self.menu_item_analyze = builder.get_object('menu_item_analyze')
 
-        self.gst_widget =  GstWidget('v4l2src ! videoconvert')
+        self.gst_widget = GstWidget('v4l2src ! videoconvert')
         # self.gst.set_size_request(200, 200)
         self.overlay.add_overlay(self.gst_widget)
         self.overlay.reorder_overlay(self.gst_widget, 0)
@@ -273,10 +267,9 @@ class App:
 
     def on_menu_item_analyze_activate(self, *args):
         snapshot = self.gst_widget.take_snapshot()
-        # result, data = cv2.imencode('.jpg', current_frame)
-        # if not result:
-        #     print('could not encode image')
-        #     return
+        if not np.any(snapshot):
+            print('Failed to take snapshot')
+            return
         is_success, raw = cv2.imencode('.jpg', snapshot)
         if not is_success:
             print('ERROR')
