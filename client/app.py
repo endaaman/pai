@@ -149,47 +149,50 @@ class GstWidget(Gtk.Box):
     def __init__(self, src='videotestsrc'):
         super().__init__()
         self.connect('realize', self._on_realize)
-        self._bin = Gst.parse_bin_from_description(src, True)
+        self.bin = Gst.parse_bin_from_description(src, True)
+
+        self.pipeline = Gst.Pipeline()
+        factory = self.pipeline.get_factory()
+        self.gtksink = factory.make('gtksink')
+
+        self.pipeline.add(self.gtksink)
+        self.pipeline.add(self.bin)
+        self.bin.link(self.gtksink)
+
+        bus = self.pipeline.get_bus()
+        bus.add_signal_watch()
+        bus.connect('message', self.on_message)
 
     def _on_realize(self, widget):
-        pipeline = Gst.Pipeline()
-        factory = pipeline.get_factory()
-        gtksink = factory.make('gtksink')
-        pipeline.add(gtksink)
-        pipeline.add(self._bin)
-        self._bin.link(gtksink)
-        self.pack_start(gtksink.props.widget, True, True, 0)
-        gtksink.props.widget.show()
-        pipeline.set_state(Gst.State.PLAYING)
-        bus = pipeline.get_bus()
-        bus.add_signal_watch()
-        bus.enable_sync_message_emission()
-        bus.connect('message', self.on_message)
-        bus.connect('sync-message::element', self.on_sync_message)
+        w = self.gtksink.get_property('widget')
+        self.pack_start(w, True, True, 0)
+        w.show()
+        self.pipeline.set_state(Gst.State.PLAYING)
 
     def on_message(self, bus, message):
         t = message.type
         if t == Gst.MessageType.EOS:
-            self.player.set_state(Gst.State.NULL)
+            self.pipeline.set_state(Gst.State.NULL)
             print('EOS')
             return
         if t == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
             print('Error: %s' % err, debug)
-            self.player.set_state(Gst.State.NULL)
-
-    def on_sync_message(self, bus, message):
-        s = message.get_structure()
-        if s is None:
-            print('structure is None')
+            self.pipeline.set_state(Gst.State.NULL)
             return
-        print('structure name: ', s.get_name())
-        message_name = s.get_name()
-        if message_name == 'prepare-window-handle':
-            imagesink = message.src
-            imagesink.set_property('force-aspect-ratio', True)
-            # imagesink.set_xwindow_id(self.drawing_area.xid)
 
+    def take_snapshot(self):
+        sample = self.gtksink.get_property('last-sample')
+        s = sample.get_caps().get_structure(0)
+        width = s.get_int('width').value
+        height = s.get_int('height').value
+        buffer = sample.get_buffer()
+        ret, map_info = buffer.map(Gst.MapFlags.READ)
+        if not ret:
+            print('ERROR')
+            return
+        arr = np.frombuffer(map_info.data, dtype=np.uint8).reshape(height, width, -1)
+        return arr
 
 
 class App:
@@ -207,7 +210,6 @@ class App:
         self.label_status_connection = builder.get_object('label_status_connection')
         self.label_status_task_count = builder.get_object('label_status_task_count')
         self.overlay = builder.get_object('overlay')
-        self.image = builder.get_object('image')
 
         self.window_control = builder.get_object('window_control')
         self.notebook = builder.get_object('notebook')
@@ -217,12 +219,12 @@ class App:
         self.menu = builder.get_object('menu')
         self.menu_item_analyze = builder.get_object('menu_item_analyze')
 
-        self.gst =  GstWidget('v4l2src ! autovideosink')
+        self.gst_widget =  GstWidget('v4l2src ! videoconvert')
         # self.gst.set_size_request(200, 200)
-        self.overlay.add_overlay(self.gst)
-        self.overlay.reorder_overlay(self.gst, 0)
+        self.overlay.add_overlay(self.gst_widget)
+        self.overlay.reorder_overlay(self.gst_widget, 0)
 
-        self.capture = cv2.VideoCapture(VIDEO)
+        # self.capture = cv2.VideoCapture(VIDEO)
         # self.player = Gst.parse_launch('v4l2src ! autovideosink')
 
         self.ws = WS()
@@ -273,6 +275,10 @@ class App:
         if self.frame is None:
             print('buffer is not loaded')
             return
+
+        self.gst_widget.take_snapshot()
+        return
+
         # result, data = cv2.imencode('.jpg', current_frame)
         # if not result:
         #     print('could not encode image')
@@ -337,44 +343,13 @@ class App:
             GLib.idle_add(self.apply_server_data)
             time.sleep(STATUS_UPDATE_DURATION)
 
-    def render(self):
-        if not np.any(self.frame):
-            return
-        win_w, win_h = self.window_main.get_size()
-        img_h, img_w, _ = self.frame.shape
-        resized = cv2.resize(self.frame, None, fx=win_w/img_w, fy=win_h/img_h, interpolation=cv2.INTER_CUBIC)
-        pb = GdkPixbuf.Pixbuf.new_from_data(
-                resized.tostring(),
-                GdkPixbuf.Colorspace.RGB,
-                False,
-                8,
-                resized.shape[1],
-                resized.shape[0],
-                resized.shape[2] * resized.shape[1])
-        self.image.set_from_pixbuf(pb)
-
     def frame_proc(self, *args):
-        ret, bgr = self.capture.read()
-        if ret:
-            self.set_frame(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB))
-        else:
-            d = 1.0 / FPS
-            time.sleep(d)
-            if not np.any(self.frame):
-                f = cv2.imread('assets/images/shako.jpg')
-                self.set_frame(cv2.cvtColor(f, cv2.COLOR_BGR2RGB))
-        # self.render()
-        self.fps.update()
-
         self.label_status_connection.set_text(self.server_state.get_connection_message())
         self.label_status_task_count.set_text(self.fps.get_label())
         self.menu_item_analyze.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
-
         return True
 
-
     def start(self):
-        # websocket.enableTrace(True)
         thread = threading.Thread(target=self.thread_proc)
         thread.daemon = True
         thread.start()
