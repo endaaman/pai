@@ -27,9 +27,15 @@ STATUS_UPDATE_DURATION = 7
 VIDEO = 0
 FPS_SAMPLE_COUNT = 60
 FPS = 30
+TEST_VIDEO_SRC = 'videotestsrc ! clockoverlay'
+CAMERA_VIDEO_SRC = 'v4l2src ! videoconvert ! gtksink'
 
-VIDO_SRC = 'v4l2src'
-
+def check_device(p):
+    try:
+        os.stat(p)
+    except FileNotFoundError:
+        return False
+    return True
 
 class ConnectionStatus(Enum):
     INIT = 'Initializing...'
@@ -142,21 +148,38 @@ class Fps:
         self.count += 1
 
 
+class Model():
+    def __init__(self):
+        self.value = None
+        self.hooks = []
+
+    def subscribe(self, func):
+        self.hooks.append(func)
+
+    def set(self, v):
+        old_value = self.value
+        self.value = v
+        for hook in self.hooks:
+            hook(v, old_value)
+
+    def get(self):
+        return self.value
+
 
 class GstWidget(Gtk.Box):
-    def __init__(self, src='videotestsrc'):
+    def __init__(self, src):
         super().__init__()
         self.connect('realize', self._on_realize)
-        self.bin = Gst.parse_bin_from_description(src, True)
+        self.video_bin = Gst.parse_bin_from_description(src, True)
+        self.test_bin = Gst.parse_bin_from_description(TEST_VIDEO_SRC, True)
 
         self.pipeline = Gst.Pipeline()
         factory = self.pipeline.get_factory()
         self.gtksink = factory.make('gtksink')
 
         self.pipeline.add(self.gtksink)
-        self.pipeline.add(self.bin)
-        self.bin.link(self.gtksink)
-
+        self.pipeline.add(self.video_bin)
+        self.video_bin.link(self.gtksink)
         bus = self.pipeline.get_bus()
         bus.add_signal_watch()
         bus.connect('message', self.on_message)
@@ -168,12 +191,11 @@ class GstWidget(Gtk.Box):
         self.pipeline.set_state(Gst.State.PLAYING)
 
     def on_message(self, bus, message):
-        t = message.type
-        if t == Gst.MessageType.EOS:
+        if message.type == Gst.MessageType.EOS:
             self.pipeline.set_state(Gst.State.NULL)
             print('EOS')
             return
-        if t == Gst.MessageType.ERROR:
+        if message.type == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
             print('Error: %s' % err, debug)
             self.pipeline.set_state(Gst.State.NULL)
@@ -211,15 +233,18 @@ class App:
         self.result_store = builder.get_object('result_store')
 
         self.menu = builder.get_object('menu')
-        self.menu_item_analyze = builder.get_object('menu_item_analyze')
+        self.menu_analyze = builder.get_object('menu_analyze')
+        self.menu_fullscreen_toggler = builder.get_object('menu_fullscreen_toggler')
 
-        self.gst_widget = GstWidget('v4l2src ! videoconvert')
-        # self.gst.set_size_request(200, 200)
+        if check_device('/dev/video0'):
+            src = CAMERA_VIDEO_SRC
+        else:
+            src = TEST_VIDEO_SRC
+        self.gst_widget = GstWidget(src)
         self.overlay.add_overlay(self.gst_widget)
         self.overlay.reorder_overlay(self.gst_widget, 0)
 
-        # self.capture = cv2.VideoCapture(VIDEO)
-        # self.player = Gst.parse_launch('v4l2src ! autovideosink')
+        builder.connect_signals(self)
 
         self.ws = WS()
         self.fps = Fps()
@@ -227,17 +252,19 @@ class App:
         self.frame = None
         self.__last_triggered_time = None
 
-        # window.fullscreen()
-        builder.connect_signals(self)
-
         provider = Gtk.CssProvider()
         provider.load_from_path('client/app.css')
         screen = Gdk.Display.get_default_screen(Gdk.Display.get_default())
         Gtk.StyleContext.add_provider_for_screen(screen, provider, 600)
 
+        self.is_fullscreen = Model()
+        self.is_fullscreen.subscribe(self.handler_is_fullscreen)
 
-    def set_frame(self, frame):
-        self.frame = frame
+    def handler_is_fullscreen(self, v):
+        if v:
+            self.window_main.maximize()
+        else:
+            self.window_main.unmaximize()
 
     def toggle_grid_status(self):
         self.grid_status.set_visible(not self.grid_status.get_visible())
@@ -264,8 +291,14 @@ class App:
             self.menu.popup(None, None, None, None, event.button, event.time)
             return
 
+    def on_window_main_state_event(self, widget, event):
+        if bool(event.changed_mask & Gdk.WindowState.MAXIMIZED):
+            if bool(event.new_window_state & Gdk.WindowState.MAXIMIZED):
+                self.window_main.fullscreen()
+            else:
+                self.window_main.unfullscreen()
 
-    def on_menu_item_analyze_activate(self, *args):
+    def on_menu_analyze_activate(self, *args):
         snapshot = self.gst_widget.take_snapshot()
         if not np.any(snapshot):
             print('Failed to take snapshot')
@@ -284,13 +317,17 @@ class App:
         # self.set_status(ConnectionStatus.UPLOADING)
         # print(type(binary.tobytes()))
 
-    def on_menu_item_menu_activate(self, *args):
+    def on_menu_menu_activate(self, *args):
         self.window_control.show_all()
 
-    # def on_menu_item_status_toggler_activate(self, widget, *args):
-    #     self.toggle_grid_status()
+    def on_menu_fullscreen_toggler_toggled(self, widget, *args):
+        if widget.get_active():
+            self.window_main.maximize()
+        else:
+            self.window_main.unmaximize()
+        # print('TOGGLE')
 
-    def on_menu_item_quit_activate(self, *args):
+    def on_menu_quit_activate(self, *args):
         self.window_main.close()
 
     def on_window_contorol_key_release(self, widget, event, *args):
@@ -335,7 +372,7 @@ class App:
     def frame_proc(self, *args):
         self.label_status_connection.set_text(self.server_state.get_connection_message())
         self.label_status_task_count.set_text(self.fps.get_label())
-        self.menu_item_analyze.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
+        self.menu_analyze.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
         return True
 
     def start(self):

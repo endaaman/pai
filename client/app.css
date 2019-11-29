@@ -10,14 +10,15 @@
   background-color: green;
 }
 
+.yellow {
+  background-color: yellow;
+}
+
 .transparent {
   background-color: transparent;
 }
 
-#box-status {
-}
-
-#box-status label {
+#status label {
   background-color: rgba(0, 0, 0, 0.5);
   padding: 0 4px;
 }

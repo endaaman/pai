@@ -13,8 +13,8 @@
     <property name="width_request">600</property>
     <property name="height_request">400</property>
     <property name="transient_for">window_main</property>
-    <signal handler="on_window_contorol_key_release" name="key-release-event" swapped="no" />
-    <signal handler="on_window_contorol_delete" name="delete-event" swapped="no" />
+    <signal name="key-release-event" handler="on_window_contorol_key_release" swapped="no" />
+    <signal name="delete-event" handler="on_window_contorol_delete" swapped="no" />
     <child>
       <object class="GtkNotebook" id="notebook">
         <property name="visible">True</property>
@@ -112,30 +112,31 @@
     <property name="height_request">500</property>
     <signal name="delete-event" handler="on_window_main_delete" swapped="no" />
     <signal name="button-press-event" handler="on_window_main_click" swapped="no" />
+    <signal name="window-state-event" handler="on_window_main_state_event" swapped="no" />
     <child>
       <object class="GtkMenu" id="menu">
         <child>
-          <object class="GtkMenuItem" id="menu_item_analyze">
+          <object class="GtkMenuItem" id="menu_analyze">
             <property name="visible">True</property>
             <property name="label" translatable="yes">Analyze</property>
-            <signal name="activate" handler="on_menu_item_analyze_activate" swapped="no"/>
+            <signal name="activate" handler="on_menu_analyze_activate" swapped="no"/>
           </object>
         </child>
         <child>
           <object class="GtkMenuItem">
             <property name="visible">True</property>
             <property name="label" translatable="yes">Menu</property>
-            <signal name="activate" handler="on_menu_item_menu_activate" swapped="no"/>
+            <signal name="activate" handler="on_menu_menu_activate" swapped="no"/>
           </object>
         </child>
-        <!-- <child> -->
-        <!--   <object class="GtkCheckMenuItem" id="menu_item_status_toggler"> -->
-        <!--     <property name="visible">True</property> -->
-        <!--     <property name="active">True</property> -->
-        <!--     <property name="label" translatable="yes">Show status</property> -->
-        <!--     <signal name="activate" handler="on_menu_item_status_toggler_activate" swapped="no"/> -->
-        <!--   </object> -->
-        <!-- </child> -->
+        <child>
+          <object class="GtkCheckMenuItem" id="menu_fullscreen_toggler">
+            <property name="visible">True</property>
+            <property name="active">False</property>
+            <property name="label" translatable="yes">Fullscreen</property>
+            <signal name="toggled" handler="on_menu_fullscreen_toggler_toggled" swapped="no"/>
+          </object>
+        </child>
         <child>
           <object class="GtkSeparatorMenuItem">
             <property name="visible">True</property>
@@ -145,7 +146,7 @@
           <object class="GtkMenuItem">
             <property name="visible">True</property>
             <property name="label" translatable="yes">Quit</property>
-            <signal name="activate" handler="on_menu_item_quit_activate" swapped="no"/>
+            <signal name="activate" handler="on_menu_quit_activate" swapped="no"/>
           </object>
         </child>
       </object>
@@ -153,18 +154,10 @@
 
         <child type="overlay">
           <object class="GtkBox">
+            <property name="orientation">vertical</property>
             <child>
-              <object class="GtkBox">
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-              </packing>
-            </child>
-            <child>
-
               <object class="GtkGrid" id="grid_status">
-                <property name="name">box-status</property>
+                <property name="name">status</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
@@ -204,7 +197,26 @@
                     <property name="top_attach">1</property>
                   </packing>
                 </child>
-
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox">
+                <property name="name">status</property>
+                <property name="height_request">10</property>
+                <!-- <style> -->
+                <!--   <class name="yellow" /> -->
+                <!-- </style> -->
+                <child>
+                  <object class="GtkLabel">
+                    <property name="xalign">1</property>
+                    <property name="label" translatable="yes">This is message</property>
+                  </object>
+                </child>
               </object>
             </child>
           </object>
