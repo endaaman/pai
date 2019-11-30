@@ -152,9 +152,13 @@ class Model():
     def __init__(self):
         self.value = None
         self.hooks = []
+        self.getter = None
 
     def subscribe(self, func):
         self.hooks.append(func)
+
+    def override_getter(self, getter):
+        self.getter = getter
 
     def set(self, v):
         old_value = self.value
@@ -163,6 +167,8 @@ class Model():
             hook(v, old_value)
 
     def get(self):
+        if self.getter:
+            return self.getter()
         return self.value
 
 
@@ -257,14 +263,7 @@ class App:
         screen = Gdk.Display.get_default_screen(Gdk.Display.get_default())
         Gtk.StyleContext.add_provider_for_screen(screen, provider, 600)
 
-        self.is_fullscreen = Model()
-        self.is_fullscreen.subscribe(self.handler_is_fullscreen)
-
-    def handler_is_fullscreen(self, v):
-        if v:
-            self.window_main.maximize()
-        else:
-            self.window_main.unmaximize()
+        # self.window_main.maximize()
 
     def toggle_grid_status(self):
         self.grid_status.set_visible(not self.grid_status.get_visible())
@@ -293,10 +292,12 @@ class App:
 
     def on_window_main_state_event(self, widget, event):
         if bool(event.changed_mask & Gdk.WindowState.MAXIMIZED):
-            if bool(event.new_window_state & Gdk.WindowState.MAXIMIZED):
+            flag = bool(event.new_window_state & Gdk.WindowState.MAXIMIZED)
+            if flag:
                 self.window_main.fullscreen()
             else:
                 self.window_main.unfullscreen()
+            self.menu_fullscreen_toggler.set_active(flag)
 
     def on_menu_analyze_activate(self, *args):
         snapshot = self.gst_widget.take_snapshot()
@@ -325,7 +326,6 @@ class App:
             self.window_main.maximize()
         else:
             self.window_main.unmaximize()
-        # print('TOGGLE')
 
     def on_menu_quit_activate(self, *args):
         self.window_main.close()
