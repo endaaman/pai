@@ -8,118 +8,38 @@
       <column type="gchararray"></column>
     </columns>
   </object>
-   <object class="GtkWindow" id="window_control">
-    <property name="can_focus">False</property>
-    <property name="width_request">600</property>
-    <property name="height_request">400</property>
-    <property name="transient_for">window_main</property>
-    <signal name="key-release-event" handler="on_window_contorol_key_release" swapped="no" />
-    <signal name="delete-event" handler="on_window_contorol_delete" swapped="no" />
-    <child>
-      <object class="GtkNotebook" id="notebook">
-        <property name="visible">True</property>
-        <property name="can_focus">True</property>
-        <child>
-          <object class="GtkBox">
-            <property name="can_focus">False</property>
-            <property name="orientation">vertical</property>
-            <property name="visible">True</property>
-            <child>
-              <object class="GtkTreeView" id="result_tree">
-                <property name="can_focus">True</property>
-                <property name="model">result_store</property>
-                <property name="visible">True</property>
-                <child internal-child="selection">
-                  <object class="GtkTreeSelection" id="treeview-selection1"></object>
-                </child>
-                <child>
-                  <object class="GtkTreeViewColumn">
-                    <property name="title" translatable="yes">column</property>
-                    <child>
-                      <object class="GtkCellRendererText" id="cellrenderertext1"></object>
-                      <attributes>
-                        <attribute name="text">0</attribute>
-                      </attributes>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkTreeViewColumn">
-                    <property name="title" translatable="yes">column</property>
-                    <child>
-                      <object class="GtkCellRendererText"></object>
-                      <attributes>
-                        <attribute name="text">1</attribute>
-                      </attributes>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkTreeViewColumn">
-                    <property name="title" translatable="yes">column</property>
-                    <child>
-                      <object class="GtkCellRendererText"></object>
-                      <attributes>
-                        <attribute name="text">2</attribute>
-                      </attributes>
-                    </child>
-                  </object>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-          </object>
-        </child>
-        <child type="tab">
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="label" translatable="yes">tab 1</property>
-          </object>
-          <packing>
-            <property name="tab_fill">False</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkBox">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="orientation">vertical</property>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="label" translatable="yes">TAB 2 CONTENT</property>
-              </object>
-            </child>
-          </object>
-        </child>
-        <child type="tab">
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="label" translatable="yes">tab 2</property>
-          </object>
-          <packing></packing>
-        </child>
-      </object>
-    </child>
+  <object class="GtkListStore" id="result_filter_store">
+    <columns>
+      <column type="gchararray"></column>
+      <column type="gchararray"></column>
+    </columns>
+    <data>
+      <row>
+        <col id="0" translatable="yes">Filter mode</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">prostate</col>
+      </row>
+      <row>
+        <col id="0" translatable="yes">camera</col>
+      </row>
+    </data>
   </object>
-  <object class="GtkWindow" id="window_main">
+
+  <object class="GtkWindow" id="main_window">
     <property name="can_focus">False</property>
     <property name="width_request">800</property>
     <property name="height_request">500</property>
-    <signal name="delete-event" handler="on_window_main_delete" swapped="no" />
-    <signal name="button-press-event" handler="on_window_main_click" swapped="no" />
-    <signal name="window-state-event" handler="on_window_main_state_event" swapped="no" />
+    <signal name="delete-event" handler="on_main_window_delete" swapped="no" />
+    <signal name="button-press-event" handler="on_main_window_click" swapped="no" />
+    <signal name="window-state-event" handler="on_main_window_state_event" swapped="no" />
     <child>
       <object class="GtkMenu" id="menu">
         <child>
-          <object class="GtkMenuItem" id="menu_analyze">
+          <object class="GtkMenuItem" id="analyze_menu">
             <property name="visible">True</property>
             <property name="label" translatable="yes">Analyze</property>
-            <signal name="activate" handler="on_menu_analyze_activate" swapped="no"/>
+            <signal name="activate" handler="on_analyze_menu_activate" swapped="no"/>
           </object>
         </child>
         <child>
@@ -130,11 +50,11 @@
           </object>
         </child>
         <child>
-          <object class="GtkCheckMenuItem" id="menu_fullscreen_toggler">
+          <object class="GtkCheckMenuItem" id="fullscreen_toggler_menu">
             <property name="visible">True</property>
             <property name="active">False</property>
             <property name="label" translatable="yes">Fullscreen</property>
-            <signal name="toggled" handler="on_menu_fullscreen_toggler_toggled" swapped="no"/>
+            <signal name="toggled" handler="on_fullscreen_toggler_menu_toggled" swapped="no"/>
           </object>
         </child>
         <child>
@@ -146,7 +66,7 @@
           <object class="GtkMenuItem">
             <property name="visible">True</property>
             <property name="label" translatable="yes">Quit</property>
-            <signal name="activate" handler="on_menu_quit_activate" swapped="no"/>
+            <signal name="activate" handler="on_quit_menu_activate" swapped="no"/>
           </object>
         </child>
       </object>
@@ -156,7 +76,7 @@
           <object class="GtkBox">
             <property name="orientation">vertical</property>
             <child>
-              <object class="GtkGrid" id="grid_status">
+              <object class="GtkGrid" id="status_grid">
                 <property name="name">status</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
@@ -170,7 +90,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label_status_connection">
+                  <object class="GtkLabel" id="status_connection_label">
                     <property name="label" translatable="yes">Initializing...</property>
                   </object>
                   <packing>
@@ -189,7 +109,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label_status_task_count">
+                  <object class="GtkLabel" id="task_count_label">
                     <property name="label" translatable="yes">0</property>
                   </object>
                   <packing>
@@ -224,4 +144,149 @@
       </object>
     </child>
   </object>
+
+  <object class="GtkWindow" id="control_window">
+    <property name="can_focus">False</property>
+    <property name="width_request">600</property>
+    <property name="height_request">400</property>
+    <property name="transient_for">main_window</property>
+    <signal name="key-release-event" handler="on_contorol_window_key_release" swapped="no" />
+    <signal name="delete-event" handler="on_contorol_window_delete" swapped="no" />
+    <child>
+      <object class="GtkNotebook" id="notebook">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkComboBox" id="result_filter_combo">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="model">result_filter_store</property>
+                <property name="active">0</property>
+                <signal name="changed" handler="on_result_filter_combo_changed" swapped="no" />
+                <child>
+                  <object class="GtkCellRendererText"></object>
+                  <attributes>
+                    <attribute name="text">0</attribute>
+                  </attributes>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkScrolledWindow">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="shadow_type">in</property>
+                <child>
+                  <object class="GtkTreeView" id="result_tree">
+                    <property name="can_focus">True</property>
+                    <property name="model">result_store</property>
+                    <property name="visible">True</property>
+                    <child internal-child="selection">
+                      <object class="GtkTreeSelection"></object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn">
+                        <property name="title" translatable="yes">name</property>
+                        <child>
+                          <object class="GtkCellRendererText"></object>
+                          <attributes>
+                            <attribute name="text">0</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn">
+                        <property name="title" translatable="yes">mode</property>
+                        <child>
+                          <object class="GtkCellRendererText"></object>
+                          <attributes>
+                            <attribute name="text">1</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn">
+                        <property name="title" translatable="yes"></property>
+                        <child>
+                          <object class="GtkCellRendererText"></object>
+                          <attributes>
+                            <attribute name="text">2</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+        <child type="tab">
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Results</property>
+          </object>
+          <packing>
+            <property name="tab_fill">False</property>
+          </packing>
+        </child>
+
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">QUEUE CONTENT</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child type="tab">
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Queue</property>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">SETTINGS CONTENT</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child type="tab">
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="label" translatable="yes">Settings</property>
+          </object>
+          <packing>
+            <property name="tab_fill">False</property>
+          </packing>
+        </child>
+
+      </object>
+    </child>
+  </object>
+
 </interface>

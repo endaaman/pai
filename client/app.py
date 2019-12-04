@@ -18,8 +18,6 @@ gi.require_version('Gst', '1.0')
 from gi.repository import Gtk, Gdk, GdkX11, GLib, GdkPixbuf, Gst
 
 
-
-
 API_HOST = 'localhost:8080'
 WS_HOST = 'localhost:8081'
 RECONNECT_DURATION = 7
@@ -28,7 +26,7 @@ VIDEO = 0
 FPS_SAMPLE_COUNT = 60
 FPS = 30
 TEST_VIDEO_SRC = 'videotestsrc ! clockoverlay'
-CAMERA_VIDEO_SRC = 'v4l2src ! videoconvert ! gtksink'
+CAMERA_VIDEO_SRC = 'v4l2src ! videoconvert'
 
 def check_device(p):
     try:
@@ -227,20 +225,22 @@ class App:
         builder = Gtk.Builder()
         builder.add_from_file('client/app.glade')
 
-        self.window_main = builder.get_object('window_main')
-        self.grid_status = builder.get_object('grid_status')
-        self.label_status_connection = builder.get_object('label_status_connection')
-        self.label_status_task_count = builder.get_object('label_status_task_count')
+        self.main_window = builder.get_object('main_window')
+        self.status_grid = builder.get_object('status_grid')
+        self.status_connection_label = builder.get_object('status_connection_label')
+        self.task_count_label = builder.get_object('task_count_label')
         self.overlay = builder.get_object('overlay')
 
-        self.window_control = builder.get_object('window_control')
+        self.control_window = builder.get_object('control_window')
         self.notebook = builder.get_object('notebook')
-        self.result_tree = builder.get_object('result_tree')
+        self.result_tree = builder.get_object('tree_result')
         self.result_store = builder.get_object('result_store')
+        self.result_filter_combo = builder.get_object('result_filter_combo')
+        self.result_filter_store = builder.get_object('result_filter_store')
 
         self.menu = builder.get_object('menu')
-        self.menu_analyze = builder.get_object('menu_analyze')
-        self.menu_fullscreen_toggler = builder.get_object('menu_fullscreen_toggler')
+        self.analyze_menu = builder.get_object('analyze_menu')
+        self.fullscreen_toggler_menu = builder.get_object('fullscreen_toggler_menu')
 
         if check_device('/dev/video0'):
             src = CAMERA_VIDEO_SRC
@@ -263,17 +263,14 @@ class App:
         screen = Gdk.Display.get_default_screen(Gdk.Display.get_default())
         Gtk.StyleContext.add_provider_for_screen(screen, provider, 600)
 
-        # self.window_main.maximize()
+        # self.main_window.maximize()
 
-    def toggle_grid_status(self):
-        self.grid_status.set_visible(not self.grid_status.get_visible())
-
-    def on_window_main_delete(self, *args):
+    def on_main_window_delete(self, *args):
         if self.ws.is_active():
             self.ws.close()
         Gtk.main_quit(*args)
 
-    def on_window_main_click(self, widget, event):
+    def on_main_window_click(self, widget, event):
         ###* GUARD START
         if event.type != Gdk.EventType.BUTTON_PRESS:
             return
@@ -283,23 +280,23 @@ class App:
         ###* GUARD END
 
         if event.button == 1:
-            self.toggle_grid_status()
+            self.status_grid.set_visible(not self.status_grid.get_visible())
             return
 
         if event.button == 3:
             self.menu.popup(None, None, None, None, event.button, event.time)
             return
 
-    def on_window_main_state_event(self, widget, event):
+    def on_main_window_state_event(self, widget, event):
         if bool(event.changed_mask & Gdk.WindowState.MAXIMIZED):
             flag = bool(event.new_window_state & Gdk.WindowState.MAXIMIZED)
             if flag:
-                self.window_main.fullscreen()
+                self.main_window.fullscreen()
             else:
-                self.window_main.unfullscreen()
+                self.main_window.unfullscreen()
             self.menu_fullscreen_toggler.set_active(flag)
 
-    def on_menu_analyze_activate(self, *args):
+    def on_analyze_menu_activate(self, *args):
         snapshot = self.gst_widget.take_snapshot()
         if not np.any(snapshot):
             print('Failed to take snapshot')
@@ -319,34 +316,47 @@ class App:
         # print(type(binary.tobytes()))
 
     def on_menu_menu_activate(self, *args):
-        self.window_control.show_all()
+        self.refresh_result_tree()
+        self.control_window.show_all()
 
-    def on_menu_fullscreen_toggler_toggled(self, widget, *args):
+    def on_fullscreen_toggler_menu_toggled(self, widget, *args):
         if widget.get_active():
-            self.window_main.maximize()
+            self.main_window.maximize()
         else:
-            self.window_main.unmaximize()
+            self.main_window.unmaximize()
 
-    def on_menu_quit_activate(self, *args):
-        self.window_main.close()
+    def on_quit_menu_activate(self, *args):
+        self.main_window.close()
 
-    def on_window_contorol_key_release(self, widget, event, *args):
+    def on_contorol_window_key_release(self, widget, event, *args):
        if event.keyval == Gdk.KEY_Escape:
-            self.window_control.close()
+            self.control_window.close()
 
-    def on_window_contorol_delete(self, *args):
-        self.window_control.hide()
+    def on_contorol_window_delete(self, *args):
+        self.control_window.hide()
         return True
 
-    def apply_server_data(self):
+    def on_result_filter_combo_changed(self, widget, *args):
+        self.refresh_result_tree()
+
+    def refresh_result_tree(self):
+        active_filter = self.result_filter_combo.get_active()
+        if active_filter > 0:
+            target_mode = self.result_filter_store[active_filter][0]
+        else:
+            target_mode = None
         self.result_store.clear()
         for r in self.server_state.results:
+            if target_mode:
+                if r.mode != target_mode:
+                    continue
             self.result_store.append([r.name, r.mode, r.original])
+
         return False # do not repeat
 
     def thread_proc(self, *args):
         self.ws.connect()
-        while self.window_main.get_visible():
+        while self.main_window.get_visible():
             # ws.run_forever()
             if not self.ws.is_active():
                 print('Try re-connect')
@@ -366,13 +376,14 @@ class App:
                 continue
             self.server_state.mark_connected()
             self.server_state.overwrite_data(data)
-            GLib.idle_add(self.apply_server_data)
+            if self.control_window.get_visible():
+                GLib.idle_add(self.refresh_result_tree)
             time.sleep(STATUS_UPDATE_DURATION)
 
     def frame_proc(self, *args):
-        self.label_status_connection.set_text(self.server_state.get_connection_message())
-        self.label_status_task_count.set_text(self.fps.get_label())
-        self.menu_analyze.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
+        self.status_connection_label.set_text(self.server_state.get_connection_message())
+        self.task_count_label.set_text(self.fps.get_label())
+        self.analyze_menu.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
         return True
 
     def start(self):
@@ -382,7 +393,7 @@ class App:
 
         # self.player.set_state(Gst.State.PLAYING)
         GLib.idle_add(self.frame_proc)
-        self.window_main.show_all()
+        self.main_window.show_all()
         Gtk.main()
 
 
