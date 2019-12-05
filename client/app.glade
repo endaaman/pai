@@ -43,6 +43,18 @@
           </object>
         </child>
         <child>
+          <object class="GtkMenuItem" id="back_to_scan_menu">
+            <property name="visible">False</property>
+            <property name="label" translatable="yes">Back to scan mode</property>
+            <signal name="activate" handler="on_back_to_scan_menu_activate" swapped="no"/>
+          </object>
+        </child>
+        <child>
+          <object class="GtkSeparatorMenuItem">
+            <property name="visible">True</property>
+          </object>
+        </child>
+        <child>
           <object class="GtkMenuItem">
             <property name="visible">True</property>
             <property name="label" translatable="yes">Menu</property>
@@ -71,7 +83,16 @@
         </child>
       </object>
       <object class="GtkOverlay" id="container_overlay">
-
+        <child type="overlay">
+          <placeholder/>
+          <!-- GstWidget -->
+        </child>
+        <child type="overlay">
+          <object class="GtkImage" id="result_image">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+          </object>
+        </child>
         <child type="overlay">
           <object class="GtkBox" id="status_box">
             <property name="orientation">vertical</property>
@@ -90,7 +111,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="status_connection_label">
+                  <object class="GtkLabel" id="connection_label">
                     <property name="label" translatable="yes">Initializing...</property>
                   </object>
                   <packing>
@@ -176,7 +197,7 @@
               </object>
             </child>
             <child>
-              <object class="GtkScrolledWindow">
+              <object class="GtkScrolledWindow" id="result_container">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="shadow_type">in</property>

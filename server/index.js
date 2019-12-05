@@ -115,7 +115,8 @@ async function fetchResults() {
     const names = await fs.readdir(mode_base)
     for (const name of names) {
       const path = pathlib.join(mode_base, name)
-      if (!(await fs.stat(path)).isDirectory()) {
+      const stat = await fs.stat(path)
+      if (!stat.isDirectory()) {
         continue
       }
       const r = new Result(mode, name)
@@ -134,10 +135,25 @@ class App {
     this.task = Promise.resolve()
     this.current = null
     this.results = []
+    this.startWatchingResults()
   }
-  watchResults() {
-    chokidar.watch(GENERATED_DIR).on('all', (event, path) => {
-      consola.log(event, path)
+  startWatchingResults() {
+    let isReady = false
+    let timer = null
+    chokidar.watch(GENERATED_DIR).on('ready', () => {
+      isReady = true
+    }).on('all', (event, path) => {
+      if (!isReady) {
+        return
+      }
+      // debouncing
+      if (timer) {
+        clearTimeout(timer)
+      }
+      timer = setTimeout(() => {
+        this.loadResults()
+        timer = null
+      }, 500)
     })
   }
   serialize() {
@@ -167,14 +183,9 @@ class App {
     consola.log('CUR: ', this.queue)
   }
   async loadResults() {
-    this.results = []
     this.results = await fetchResults()
   }
-
-  async getResults() {
-    if (!this.results) {
-      await this.loadResults()
-    }
+  getResults() {
     return this.results
   }
 }
@@ -202,7 +213,7 @@ router.get('/api/modes', async (ctx, next) => {
 })
 
 router.get('/api/results', async (ctx, next) => {
-  const results = (await app.getResults()).map((r) => r.serialize())
+  const results = app.getResults().map((r) => r.serialize())
   ctx.body = results
 })
 
