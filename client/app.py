@@ -3,37 +3,37 @@ import io
 import json
 import time
 import threading
+import argparse
 from enum import Enum, auto
 from collections import namedtuple
 
 import numpy as np
 import cv2
 import requests
-from PIL import Image
-import websocket
 
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gst', '1.0')
 from gi.repository import Gtk, Gdk, GdkX11, GLib, GdkPixbuf, Gst
 
+from utils import Fps, check_device
+from ws import WS
+from ui import GstWidget
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-t', '--test', action="store_true")
+args = parser.parse_args()
+
+ARG_TEST = args.test
 
 API_HOST = 'localhost:8080'
-WS_HOST = 'localhost:8081'
 RECONNECT_DURATION = 7
 STATUS_UPDATE_DURATION = 7
-VIDEO = 0
-FPS_SAMPLE_COUNT = 60
-FPS = 30
 TEST_VIDEO_SRC = 'videotestsrc ! clockoverlay'
 CAMERA_VIDEO_SRC = 'v4l2src ! videoconvert'
 
-def check_device(p):
-    try:
-        os.stat(p)
-    except FileNotFoundError:
-        return False
-    return True
+
+Result = namedtuple('Result', ['name', 'mode', 'original', 'overlays'])
 
 class ConnectionStatus(Enum):
     INIT = 'Initializing...'
@@ -41,48 +41,15 @@ class ConnectionStatus(Enum):
     CONNECTED = 'Connected'
     UNKNOWN = '????'
 
-class WS:
-    def __init__(self):
-        super().__init__()
-        self.ws = None
-
-    def is_active(self):
-        # return ws and ws.sock and ws.sock.connected
-        return self.ws and self.ws.connected
-
-    def close(self):
-        # return ws and ws.sock and ws.sock.connected
-        if not self.ws:
-            return
-        if self.ws.connected:
-            self.ws.close()
-        self.ws = None
-
-    def connect(self):
-        try:
-            self.ws = websocket.create_connection(f'ws://{WS_HOST}/status')
-        except Exception as e:
-            print('Failed to connect', e)
-            self.ws = None
-            return
-        print('Connected')
-
-    def acquire_status(self, *args):
-        try:
-            self.ws.send('status')
-            return self.ws.recv()
-        except Exception as e:
-            print('ERROR WHEN SENDING OR RECEIVING', e)
-        return False
-
-Result = namedtuple('Result', ['name', 'mode', 'original', 'overlays'])
-
 class ServerState:
     def __init__(self):
         self.current = None
         self.queue = []
         self.results = []
         self.connection_status = ConnectionStatus.INIT
+
+    def is_connected(self):
+        return self.connection_status is ConnectionStatus.CONNECTED
 
     def mark_connected(self):
         self.connection_status = ConnectionStatus.CONNECTED
@@ -97,6 +64,12 @@ class ServerState:
         self.queue = []
         self.results = []
         self.connection_status = ConnectionStatus.DISCONNECTED
+
+    def find_result(self, mode, name):
+        for r in self.results:
+            if mode == r.mode and name == r.name:
+                return r
+        return None
 
     def get_connection_message(self):
         if not self.connection_status is ConnectionStatus.CONNECTED:
@@ -114,36 +87,6 @@ class ServerState:
             return 'n/a'
         return str(len(self.queue))
 
-class Fps:
-    def __init__(self):
-        self.count = 0
-        self.start_time = None
-        self.value = 0
-        self.calculated = False
-
-    def get_time(self):
-        return time.time() * 1000
-
-    def get_value(self):
-        return self.value
-
-    def get_label(self):
-        if not self.calculated:
-            return 'n/a'
-        return f'{self.value:.2f}'
-
-    def update(self):
-        if self.count == 0:
-            self.start_time = self.get_time()
-            self.count += 1
-            return
-        if self.count == FPS_SAMPLE_COUNT:
-            elapsed = self.get_time() - self.start_time
-            self.value = 1000 / ((elapsed / FPS_SAMPLE_COUNT))
-            self.count = 0
-            self.calculated = True
-            return
-        self.count += 1
 
 
 class Model():
@@ -170,53 +113,6 @@ class Model():
         return self.value
 
 
-class GstWidget(Gtk.Box):
-    def __init__(self, src):
-        super().__init__()
-        self.connect('realize', self._on_realize)
-        self.video_bin = Gst.parse_bin_from_description(src, True)
-        self.test_bin = Gst.parse_bin_from_description(TEST_VIDEO_SRC, True)
-
-        self.pipeline = Gst.Pipeline()
-        factory = self.pipeline.get_factory()
-        self.gtksink = factory.make('gtksink')
-
-        self.pipeline.add(self.gtksink)
-        self.pipeline.add(self.video_bin)
-        self.video_bin.link(self.gtksink)
-        bus = self.pipeline.get_bus()
-        bus.add_signal_watch()
-        bus.connect('message', self.on_message)
-
-    def _on_realize(self, widget):
-        w = self.gtksink.get_property('widget')
-        self.pack_start(w, True, True, 0)
-        w.show()
-        self.pipeline.set_state(Gst.State.PLAYING)
-
-    def on_message(self, bus, message):
-        if message.type == Gst.MessageType.EOS:
-            self.pipeline.set_state(Gst.State.NULL)
-            print('EOS')
-            return
-        if message.type == Gst.MessageType.ERROR:
-            err, debug = message.parse_error()
-            print('Error: %s' % err, debug)
-            self.pipeline.set_state(Gst.State.NULL)
-            return
-
-    def take_snapshot(self):
-        sample = self.gtksink.get_property('last-sample')
-        s = sample.get_caps().get_structure(0)
-        width = s.get_int('width').value
-        height = s.get_int('height').value
-        buffer = sample.get_buffer()
-        ret, map_info = buffer.map(Gst.MapFlags.READ)
-        if not ret:
-            print('ERROR')
-            return
-        arr = np.frombuffer(map_info.data, dtype=np.uint8).reshape(height, width, -1)
-        return arr
 
 
 class App:
@@ -226,10 +122,10 @@ class App:
         builder.add_from_file('client/app.glade')
 
         self.main_window = builder.get_object('main_window')
-        self.status_grid = builder.get_object('status_grid')
         self.status_connection_label = builder.get_object('status_connection_label')
         self.task_count_label = builder.get_object('task_count_label')
-        self.overlay = builder.get_object('overlay')
+        self.container_overlay = builder.get_object('container_overlay')
+        self.status_box = builder.get_object('status_box')
 
         self.control_window = builder.get_object('control_window')
         self.notebook = builder.get_object('notebook')
@@ -242,13 +138,13 @@ class App:
         self.analyze_menu = builder.get_object('analyze_menu')
         self.fullscreen_toggler_menu = builder.get_object('fullscreen_toggler_menu')
 
-        if check_device('/dev/video0'):
+        if not ARG_TEST and check_device('/dev/video0'):
             src = CAMERA_VIDEO_SRC
         else:
             src = TEST_VIDEO_SRC
         self.gst_widget = GstWidget(src)
-        self.overlay.add_overlay(self.gst_widget)
-        self.overlay.reorder_overlay(self.gst_widget, 0)
+        self.container_overlay.add_overlay(self.gst_widget)
+        self.container_overlay.reorder_overlay(self.gst_widget, 0)
 
         builder.connect_signals(self)
 
@@ -280,7 +176,7 @@ class App:
         ###* GUARD END
 
         if event.button == 1:
-            self.status_grid.set_visible(not self.status_grid.get_visible())
+            self.status_box.set_visible(not self.status_box.get_visible())
             return
 
         if event.button == 3:
@@ -339,6 +235,12 @@ class App:
     def on_result_filter_combo_changed(self, widget, *args):
         self.refresh_result_tree()
 
+    def on_result_tree_row_activated(self, widget, path, column):
+        row = self.result_store[path]
+        result = self.server_state.find_result(row[1], row[0])
+        print(result)
+
+
     def refresh_result_tree(self):
         active_filter = self.result_filter_combo.get_active()
         if active_filter > 0:
@@ -383,7 +285,7 @@ class App:
     def frame_proc(self, *args):
         self.status_connection_label.set_text(self.server_state.get_connection_message())
         self.task_count_label.set_text(self.fps.get_label())
-        self.analyze_menu.set_sensitive(self.server_state.connection_status is ConnectionStatus.CONNECTED)
+        self.analyze_menu.set_sensitive(self.server_state.is_connected())
         return True
 
     def start(self):

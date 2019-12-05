@@ -5,6 +5,7 @@ verify_ssl = true
 
 [scripts]
 client = "python3 ./client/app.py"
+dev = "python3 ./client/app.py --test"
 
 [dev-packages]
 pylint = "*"
