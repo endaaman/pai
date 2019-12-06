@@ -20,7 +20,7 @@
 
 #notifications-grid {
   background-color: rgba(0, 0, 0, 0.5);
-  padding: 4px 8px;
+  padding: 2px 8px;
 }
 
 #notifications-grid label:nth-child(even) {

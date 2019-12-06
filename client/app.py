@@ -58,34 +58,6 @@ def get_grid_row_count(grid):
         count = max(count, top + height)
     return count
 
-class ServerState:
-    def __init__(self):
-        self.current = None
-        self.queue = []
-        self.results = []
-
-    def overwrite_data(self, d):
-        self.current = d['current']
-        self.queue = d['queue']
-        self.results = [Result(**r) for r in d['results']]
-
-    def reset(self):
-        self.current = None
-        self.queue = []
-        self.results = []
-
-    def find_result(self, mode, name):
-        for r in self.results:
-            if mode == r.mode and name == r.name:
-                return r
-        return None
-
-    def get_task_count_message(self):
-        if not self.connection_status is ConnectionStatus.CONNECTED:
-            return 'n/a'
-        return str(len(self.queue))
-
-
 class App:
     def __init__(self):
         Gst.init(None)
@@ -173,7 +145,7 @@ class App:
 
         self.analyze_menu.set_visible(scanning)
         self.back_to_scan_menu.set_visible(inspecting)
-        self.inspect_menu.set_visible(inspecting)
+        # self.inspect_menu.set_visible(inspecting)
 
         self.gst_widget.set_visible(scanning)
         self.result_image.set_visible(inspecting)
