@@ -40,17 +40,18 @@ class Fps:
         self.count += 1
 
 class Model():
-    def __init__(self, value, hooks=[], getter=None):
+    def __init__(self, value, hook=None, getter=None):
         self.value = None
-        self.hooks = []
-        for hook in hooks:
+        self.getter = None
+        self.hook = None
+        if hook:
             self.subscribe(hook)
         if getter:
             self.override_getter(getter)
         self.set(value)
 
-    def subscribe(self, func):
-        self.hooks.append(func)
+    def subscribe(self, hook):
+        self.hook = hook
 
     def override_getter(self, getter):
         self.getter = getter
@@ -58,11 +59,11 @@ class Model():
     def set(self, v):
         old_value = self.value
         self.value = v
-        for hook in self.hooks:
-            hook(v, old_value)
+        if self.hook:
+            self.hook(v, old_value)
 
     def get(self):
         if self.getter:
-            return self.getter()
+            return self.getter(self.value)
         return self.value
 

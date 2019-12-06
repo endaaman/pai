@@ -5,7 +5,7 @@ import time
 import threading
 import argparse
 import enum
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 
 import numpy as np
 import cv2
@@ -44,6 +44,20 @@ class Connection(enum.Enum):
     UNKNOWN = '????'
 
 
+def find_results(results, mode, name):
+    for r in results:
+        if mode == r.mode and name == r.name:
+            return r
+    return None
+
+def get_grid_row_count(grid):
+    count = 0
+    for child in grid.get_children():
+        top = grid.child_get_property(child, 'top-attach')
+        height = grid.child_get_property(child, 'width')
+        count = max(count, top + height)
+    return count
+
 class ServerState:
     def __init__(self):
         self.current = None
@@ -80,9 +94,9 @@ class App:
 
         self.main_window = builder.get_object('main_window')
         self.container_overlay = builder.get_object('container_overlay')
-        self.status_box = builder.get_object('status_box')
+        self.notifications_grid = builder.get_object('notifications_grid')
+
         self.connection_label = builder.get_object('connection_label')
-        self.task_count_label = builder.get_object('task_count_label')
         self.gst_widget = GstWidget(GST_SOURCE)
         self.result_image = builder.get_object('result_image')
 
@@ -106,36 +120,70 @@ class App:
 
         self.ws = WS()
         self.fps = Fps()
-        self.server_state = ServerState()
-        self.frame = None
-        self.current_result = Model(None, [self.handler_current_result])
-        self.connection = Model(Connection.INITIALIZING, [self.handler_connection])
+
+        self.results = Model([])
+        self.notifications = Model(OrderedDict(), self.handler_notifications)
+        self.connection = Model(Connection.INITIALIZING, self.handler_connection)
+        self.current_result = Model(None, self.handler_current_result)
         self.__last_triggered_time = None
 
         provider = Gtk.CssProvider()
         provider.load_from_path('client/app.css')
         screen = Gdk.Display.get_default_screen(Gdk.Display.get_default())
         Gtk.StyleContext.add_provider_for_screen(screen, provider, 600)
-
         # self.main_window.maximize()
 
+    def handler_notifications(self, notifications, old):
+        row_count = get_grid_row_count(self.notifications_grid)
+        notifications_count = len([v for v in notifications.values() if v])
+        if row_count < notifications_count:
+            for top in range(row_count, notifications_count):
+                for left in [0, 1]:
+                    label = Gtk.Label()
+                    label.props.xalign = 0
+                    self.notifications_grid.attach(label, left, top, 1, 1)
+        if row_count > notifications_count:
+            for r in range(notifications_count, row_count):
+                self.notifications_grid.remove_row(r)
+        for top, key in enumerate(notifications.keys()):
+            value = notifications[key]
+            if not value:
+                continue
+            key_label = self.notifications_grid.get_child_at(0, top)
+            key_label.set_label(key + ':')
+            value_label = self.notifications_grid.get_child_at(1, top)
+            value_label.set_label(value)
+        self.notifications_grid.show_all()
+
     def handler_connection(self, connection, old):
-        self.connection_label.set_text(connection.value)
+        # self.connection_label.set_text(connection.value)
         self.analyze_menu.set_sensitive(connection == Connection.CONNECTED)
+        n = self.notifications.get()
+        n['Connection'] = connection.value
+        self.notifications.set(n)
 
     def handler_current_result(self, result, old):
-        # Show gst
-        resulting = result
+        inspecting = result
         scanning = not result
         if scanning:
             title = 'Scanning'
         else:
-            title = f'Result: {result.name} ({result.mode})'
+            title = f'Inspecting: {result.name} ({result.mode})'
         self.main_window.set_title(title)
+
         self.analyze_menu.set_visible(scanning)
-        self.back_to_scan_menu.set_visible(resulting)
+        self.back_to_scan_menu.set_visible(inspecting)
+        self.inspect_menu.set_visible(inspecting)
+
         self.gst_widget.set_visible(scanning)
-        self.result_image.set_visible(resulting)
+        self.result_image.set_visible(inspecting)
+
+        n = self.notifications.get()
+        n['Mode'] = result.mode if inspecting else None
+        n['Result'] = result.name if inspecting else None
+        self.notifications.set(n)
+
+
 
     def on_main_window_delete(self, *args):
         if self.ws.is_active():
@@ -152,7 +200,7 @@ class App:
         ###* GUARD END
 
         if event.button == 1:
-            self.status_box.set_visible(not self.status_box.get_visible())
+            self.notifications_grid.set_visible(not self.notifications_grid.get_visible())
             return
 
         if event.button == 3:
@@ -169,6 +217,14 @@ class App:
             self.fullscreen_toggler_menu.set_active(flag)
 
     def on_analyze_menu_activate(self, *args):
+        n = self.notifications.get()
+        if len(n) < 4:
+            n.append(['HOGE', 'FUGA'])
+        else:
+            n.pop()
+        self.notifications.set(n)
+        return
+
         snapshot = self.gst_widget.take_snapshot()
         if not np.any(snapshot):
             print('Failed to take snapshot')
@@ -183,7 +239,7 @@ class App:
             {'mode': 'camera'},
             files={'image': ('image.jpg', buffer.getvalue(), 'image/jpeg', {'Expires': '0'})})
         print(res)
-        self.server_state.overwrite_data(res.json())
+        self.results.set(res.json()['results'])
 
     def on_back_to_scan_menu_activate(self, *args):
         self.current_result.set(None)
@@ -214,7 +270,7 @@ class App:
 
     def on_result_tree_row_activated(self, widget, path, column):
         row = self.result_store[path]
-        result = self.server_state.find_result(row[1], row[0])
+        result = find_results(self.results.get(), row[1], row[0])
         self.current_result.set(result)
         self.control_window.hide()
 
@@ -230,7 +286,7 @@ class App:
         scroll_value = self.result_container.get_vadjustment().get_value()
         selected_rows = self.result_tree.get_selection().get_selected_rows()[1]
         self.result_store.clear()
-        for r in reversed(self.server_state.results):
+        for r in reversed(self.results.get()):
             if target_mode:
                 if r.mode != target_mode:
                     continue
@@ -248,7 +304,7 @@ class App:
             if not self.ws.is_active():
                 print('Try re-connect')
                 self.connection.set(Connection.DISCONNECTED)
-                self.server_state.reset()
+                self.results.set([])
                 time.sleep(RECONNECT_INTERVAL)
                 self.ws.connect()
                 continue
@@ -262,7 +318,7 @@ class App:
                 print(f'PARSE ERROR: {data}')
                 self.ws.close()
                 continue
-            self.server_state.overwrite_data(data)
+            self.results.set([Result(**r) for r in data['results']])
             self.connection.set(Connection.CONNECTED)
             time.sleep(SERVER_POLLING_INTERVAL)
 

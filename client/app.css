@@ -18,7 +18,12 @@
   background-color: transparent;
 }
 
-#status label {
+#notifications-grid {
   background-color: rgba(0, 0, 0, 0.5);
-  padding: 0 4px;
+  padding: 4px 8px;
+}
+
+#notifications-grid label:nth-child(even) {
+  /* font-style: italic; */
+  /* font-weight: 800; */
 }

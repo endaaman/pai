@@ -26,6 +26,55 @@
     </data>
   </object>
 
+  <object class="GtkMenu" id="menu">
+    <child>
+      <object class="GtkMenuItem" id="analyze_menu">
+        <property name="visible">True</property>
+        <property name="label" translatable="yes">Analyze</property>
+        <signal name="activate" handler="on_analyze_menu_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="back_to_scan_menu">
+        <property name="visible">False</property>
+        <property name="label" translatable="yes">Back to scan mode</property>
+        <signal name="activate" handler="on_back_to_scan_menu_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkSeparatorMenuItem">
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem">
+        <property name="visible">True</property>
+        <property name="label" translatable="yes">Menu</property>
+        <signal name="activate" handler="on_menu_menu_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkCheckMenuItem" id="fullscreen_toggler_menu">
+        <property name="visible">True</property>
+        <property name="active">False</property>
+        <property name="label" translatable="yes">Fullscreen</property>
+        <signal name="toggled" handler="on_fullscreen_toggler_menu_toggled" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkSeparatorMenuItem">
+        <property name="visible">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem">
+        <property name="visible">True</property>
+        <property name="label" translatable="yes">Quit</property>
+        <signal name="activate" handler="on_quit_menu_activate" swapped="no"/>
+      </object>
+    </child>
+  </object>
+
   <object class="GtkWindow" id="main_window">
     <property name="can_focus">False</property>
     <property name="width_request">800</property>
@@ -34,54 +83,6 @@
     <signal name="button-press-event" handler="on_main_window_click" swapped="no" />
     <signal name="window-state-event" handler="on_main_window_state_event" swapped="no" />
     <child>
-      <object class="GtkMenu" id="menu">
-        <child>
-          <object class="GtkMenuItem" id="analyze_menu">
-            <property name="visible">True</property>
-            <property name="label" translatable="yes">Analyze</property>
-            <signal name="activate" handler="on_analyze_menu_activate" swapped="no"/>
-          </object>
-        </child>
-        <child>
-          <object class="GtkMenuItem" id="back_to_scan_menu">
-            <property name="visible">False</property>
-            <property name="label" translatable="yes">Back to scan mode</property>
-            <signal name="activate" handler="on_back_to_scan_menu_activate" swapped="no"/>
-          </object>
-        </child>
-        <child>
-          <object class="GtkSeparatorMenuItem">
-            <property name="visible">True</property>
-          </object>
-        </child>
-        <child>
-          <object class="GtkMenuItem">
-            <property name="visible">True</property>
-            <property name="label" translatable="yes">Menu</property>
-            <signal name="activate" handler="on_menu_menu_activate" swapped="no"/>
-          </object>
-        </child>
-        <child>
-          <object class="GtkCheckMenuItem" id="fullscreen_toggler_menu">
-            <property name="visible">True</property>
-            <property name="active">False</property>
-            <property name="label" translatable="yes">Fullscreen</property>
-            <signal name="toggled" handler="on_fullscreen_toggler_menu_toggled" swapped="no"/>
-          </object>
-        </child>
-        <child>
-          <object class="GtkSeparatorMenuItem">
-            <property name="visible">True</property>
-          </object>
-        </child>
-        <child>
-          <object class="GtkMenuItem">
-            <property name="visible">True</property>
-            <property name="label" translatable="yes">Quit</property>
-            <signal name="activate" handler="on_quit_menu_activate" swapped="no"/>
-          </object>
-        </child>
-      </object>
       <object class="GtkOverlay" id="container_overlay">
         <child type="overlay">
           <placeholder/>
@@ -94,67 +95,17 @@
           </object>
         </child>
         <child type="overlay">
-          <object class="GtkBox" id="status_box">
+          <object class="GtkBox">
             <property name="orientation">vertical</property>
             <child>
-              <object class="GtkGrid">
-                <property name="name">status</property>
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="label" translatable="yes">Connection</property>
-                  </object>
-                  <packing>
-                    <property name="left_attach">0</property>
-                    <property name="top_attach">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel" id="connection_label">
-                    <property name="label" translatable="yes">Initializing...</property>
-                  </object>
-                  <packing>
-                    <property name="left_attach">1</property>
-                    <property name="top_attach">0</property>
-                  </packing>
-                </child>
-
-                <child>
-                  <object class="GtkLabel">
-                    <property name="label" translatable="yes">FPS</property>
-                  </object>
-                  <packing>
-                    <property name="left_attach">0</property>
-                    <property name="top_attach">1</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel" id="task_count_label">
-                    <property name="label" translatable="yes">0</property>
-                  </object>
-                  <packing>
-                    <property name="left_attach">1</property>
-                    <property name="top_attach">1</property>
-                  </packing>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
               <object class="GtkBox">
-                <property name="name">status</property>
-                <property name="height_request">10</property>
-                <!-- <style> -->
-                <!--   <class name="yellow" /> -->
-                <!-- </style> -->
                 <child>
-                  <object class="GtkLabel">
-                    <property name="label" translatable="yes">Ready</property>
+                  <object class="GtkGrid" id="notifications_grid">
+                    <property name="name">notifications-grid</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="row_spacing">4</property>
+                    <property name="column_spacing">8</property>
                   </object>
                 </child>
               </object>
@@ -166,6 +117,7 @@
   </object>
 
   <object class="GtkWindow" id="control_window">
+    <property name="title">Menu</property>
     <property name="can_focus">False</property>
     <property name="width_request">600</property>
     <property name="height_request">400</property>
