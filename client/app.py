@@ -6,6 +6,7 @@ import threading
 import argparse
 import enum
 from collections import namedtuple, OrderedDict
+import asyncio
 
 import numpy as np
 import cv2
@@ -35,7 +36,7 @@ if not ARG_TEST and check_device('/dev/video0'):
 else:
     GST_SOURCE = 'videotestsrc ! clockoverlay'
 
-ResultBase = namedtuple('Result', ['name', 'mode', 'original', 'overlays'])
+Result = namedtuple('Result', ['name', 'mode', 'original', 'overlays'])
 
 class Detail:
     def __init__(self, result):
@@ -71,6 +72,12 @@ def get_grid_row_count(grid):
         height = grid.child_get_property(child, 'width')
         count = max(count, top + height)
     return count
+
+
+async def wait(s):
+    print(f'start wait {s}')
+    await asyncio.sleep(s)
+    print(f'end wait {s}')
 
 class App:
     def __init__(self):
@@ -109,8 +116,9 @@ class App:
 
         self.results = Model([])
         self.notifications = Model(OrderedDict(), self.handler_notifications)
-        self.connection = Model(Connection.INITIALIZING, self.handler_connection)
+        self.detail = Model(None, self.handler_detail)
         self.result = Model(None, self.handler_result)
+        self.connection = Model(Connection.INITIALIZING, self.handler_connection)
         self.__last_triggered_time = None
 
         provider = Gtk.CssProvider()
@@ -131,22 +139,27 @@ class App:
         if row_count > notifications_count:
             for r in range(notifications_count, row_count):
                 self.notifications_grid.remove_row(r)
-        for top, key in enumerate(notifications.keys()):
-            value = notifications[key]
+        top = 0
+        for key, value in notifications.items():
             if not value:
                 continue
             key_label = self.notifications_grid.get_child_at(0, top)
             key_label.set_label(key + ':')
             value_label = self.notifications_grid.get_child_at(1, top)
             value_label.set_label(value)
+            top += 1
         self.notifications_grid.show_all()
+
+    def set_notification(self, pairs):
+        n = self.notifications.get()
+        for pair in pairs:
+            n[pair[0]] = pair[1]
+        self.notifications.set(n)
 
     def handler_connection(self, connection, old):
         # self.connection_label.set_text(connection.value)
         self.analyze_menu.set_sensitive(connection == Connection.CONNECTED)
-        n = self.notifications.get()
-        n['Connection'] = connection.value
-        self.notifications.set(n)
+        self.set_notification([['Connection', connection.value]])
 
     def handler_result(self, result, old):
         inspecting = result
@@ -164,15 +177,20 @@ class App:
         self.gst_widget.set_visible(scanning)
         self.result_image.set_visible(inspecting)
 
-        n = self.notifications.get()
-        n['Mode'] = result.mode if inspecting else None
-        n['Result'] = result.name if inspecting else None
-        self.notifications.set(n)
+        self.set_notification([
+            ['Mode', result.mode if inspecting else None],
+            ['Result', result.name if inspecting else None],
+        ])
 
         if not result:
             self.detail.set(None)
+            return
+        self.detail.set(Detail(result))
 
-        detail = Detail(result)
+    def handler_detail(self, detail, old):
+        if not detail:
+            return
+        # detail.download()
 
     def on_main_window_delete(self, *args):
         if self.ws.is_active():
@@ -206,6 +224,12 @@ class App:
             self.fullscreen_toggler_menu.set_active(flag)
 
     def on_analyze_menu_activate(self, *args):
+        loop = asyncio.get_event_loop()
+        # loop.create_task(call_hello_world1())
+        loop.run_until_complete(wait(7))
+        self.main_window.set_title('done')
+        return
+
         snapshot = self.gst_widget.take_snapshot()
         if not np.any(snapshot):
             print('Failed to take snapshot')
