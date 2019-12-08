@@ -1,3 +1,11 @@
+import io
+import os
+import time
+import numpy as np
+import cv2
+import requests
+
+
 FPS_SAMPLE_COUNT = 60
 FPS = 30
 
@@ -7,6 +15,17 @@ def check_device(p):
     except FileNotFoundError:
         return False
     return True
+
+def download_image(path):
+    r = requests.get(path, stream=True)
+    if r.status_code != 200:
+        return None
+    stream = io.BytesIO()
+    for chunk in r.iter_content(1024):
+        stream.write(chunk)
+    return cv2.imdecode(np.frombuffer(stream.getvalue(), dtype=np.uint8), cv2.IMREAD_COLOR)
+    # return cv2.imdecode(stream.getvalue(), cv2.IMREAD_COLOR)
+
 
 class Fps:
     def __init__(self):

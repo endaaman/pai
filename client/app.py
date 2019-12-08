@@ -35,7 +35,21 @@ if not ARG_TEST and check_device('/dev/video0'):
 else:
     GST_SOURCE = 'videotestsrc ! clockoverlay'
 
-Result = namedtuple('Result', ['name', 'mode', 'original', 'overlays'])
+ResultBase = namedtuple('Result', ['name', 'mode', 'original', 'overlays'])
+
+class Detail:
+    def __init__(self, result):
+        self.result = result
+        self.original_image = None
+        self.overlay_images = []
+
+    def to_url(self, rel):
+        return f'http://{API_HOST}/{rel}'
+
+    def download(self):
+        self.original_image = download_image(self.to_url(self.result))
+        for o in self.result.overlays:
+            self.original_images.append(download_image(self.to_url(o)))
 
 class Connection(enum.Enum):
     INITIALIZING = 'Initializing'
@@ -96,7 +110,7 @@ class App:
         self.results = Model([])
         self.notifications = Model(OrderedDict(), self.handler_notifications)
         self.connection = Model(Connection.INITIALIZING, self.handler_connection)
-        self.current_result = Model(None, self.handler_current_result)
+        self.result = Model(None, self.handler_result)
         self.__last_triggered_time = None
 
         provider = Gtk.CssProvider()
@@ -134,7 +148,7 @@ class App:
         n['Connection'] = connection.value
         self.notifications.set(n)
 
-    def handler_current_result(self, result, old):
+    def handler_result(self, result, old):
         inspecting = result
         scanning = not result
         if scanning:
@@ -155,7 +169,10 @@ class App:
         n['Result'] = result.name if inspecting else None
         self.notifications.set(n)
 
+        if not result:
+            self.detail.set(None)
 
+        detail = Detail(result)
 
     def on_main_window_delete(self, *args):
         if self.ws.is_active():
@@ -189,14 +206,6 @@ class App:
             self.fullscreen_toggler_menu.set_active(flag)
 
     def on_analyze_menu_activate(self, *args):
-        n = self.notifications.get()
-        if len(n) < 4:
-            n.append(['HOGE', 'FUGA'])
-        else:
-            n.pop()
-        self.notifications.set(n)
-        return
-
         snapshot = self.gst_widget.take_snapshot()
         if not np.any(snapshot):
             print('Failed to take snapshot')
@@ -211,10 +220,10 @@ class App:
             {'mode': 'camera'},
             files={'image': ('image.jpg', buffer.getvalue(), 'image/jpeg', {'Expires': '0'})})
         print(res)
-        self.results.set(res.json()['results'])
+        self.results.set(Result(**r) for r in [res.json()['results']])
 
     def on_back_to_scan_menu_activate(self, *args):
-        self.current_result.set(None)
+        self.result.set(None)
 
     def on_menu_menu_activate(self, *args):
         self.control_window.show_all()
@@ -243,7 +252,7 @@ class App:
     def on_result_tree_row_activated(self, widget, path, column):
         row = self.result_store[path]
         result = find_results(self.results.get(), row[1], row[0])
-        self.current_result.set(result)
+        self.result.set(result)
         self.control_window.hide()
 
     def refresh_result_tree(self):
@@ -269,6 +278,9 @@ class App:
             self.result_container.get_vadjustment().set_value(scroll_value)
         GLib.idle_add(adjust)
         return True # repeat
+
+    def download_result(self):
+        return
 
     def thread_proc(self, *args):
         self.ws.connect()
