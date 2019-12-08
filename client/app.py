@@ -2,8 +2,8 @@ import os
 import io
 import json
 import time
-import threading
 import argparse
+import threading
 import enum
 from collections import namedtuple, OrderedDict
 import asyncio
@@ -17,7 +17,7 @@ gi.require_version('Gtk', '3.0')
 gi.require_version('Gst', '1.0')
 from gi.repository import Gtk, Gdk, GLib, GdkPixbuf, Gst
 
-from utils import Fps, Model, check_device
+from utils import Fps, Model, check_device, download_image, async_signal
 from ws import WS
 from ui import GstWidget
 
@@ -38,6 +38,7 @@ else:
 
 Result = namedtuple('Result', ['name', 'mode', 'original', 'overlays'])
 
+
 class Detail:
     def __init__(self, result):
         self.result = result
@@ -48,9 +49,9 @@ class Detail:
         return f'http://{API_HOST}/{rel}'
 
     def download(self):
-        self.original_image = download_image(self.to_url(self.result))
+        self.original_image = download_image(self.to_url(self.result.original))
         for o in self.result.overlays:
-            self.original_images.append(download_image(self.to_url(o)))
+            self.overlay_images.append(download_image(self.to_url(o)))
 
 class Connection(enum.Enum):
     INITIALIZING = 'Initializing'
@@ -76,7 +77,7 @@ def get_grid_row_count(grid):
 
 async def wait(s):
     print(f'start wait {s}')
-    await asyncio.sleep(s)
+    await sleep(s)
     print(f'end wait {s}')
 
 class App:
@@ -190,7 +191,10 @@ class App:
     def handler_detail(self, detail, old):
         if not detail:
             return
-        # detail.download()
+        detail.download()
+        print(detail.original_image.shape)
+        if len(detail.overlay_images) > 0:
+            print(detail.overlays[0].shape)
 
     def on_main_window_delete(self, *args):
         if self.ws.is_active():
@@ -224,12 +228,6 @@ class App:
             self.fullscreen_toggler_menu.set_active(flag)
 
     def on_analyze_menu_activate(self, *args):
-        loop = asyncio.get_event_loop()
-        # loop.create_task(call_hello_world1())
-        loop.run_until_complete(wait(7))
-        self.main_window.set_title('done')
-        return
-
         snapshot = self.gst_widget.take_snapshot()
         if not np.any(snapshot):
             print('Failed to take snapshot')
@@ -243,8 +241,12 @@ class App:
             f'http://{API_HOST}/api/analyze',
             {'mode': 'camera'},
             files={'image': ('image.jpg', buffer.getvalue(), 'image/jpeg', {'Expires': '0'})})
-        print(res)
         self.results.set(Result(**r) for r in [res.json()['results']])
+
+    @async_signal
+    async def on_browser_menu_activate(self, *args):
+
+        self.main_window.set_title('done')
 
     def on_back_to_scan_menu_activate(self, *args):
         self.result.set(None)

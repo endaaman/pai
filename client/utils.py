@@ -1,9 +1,11 @@
 import io
 import os
+import threading
 import time
-import numpy as np
+import asyncio
 import cv2
 import requests
+import numpy as np
 
 
 FPS_SAMPLE_COUNT = 60
@@ -19,12 +21,25 @@ def check_device(p):
 def download_image(path):
     r = requests.get(path, stream=True)
     if r.status_code != 200:
+        print('not 200:', r.status_code, path)
         return None
     stream = io.BytesIO()
     for chunk in r.iter_content(1024):
         stream.write(chunk)
     return cv2.imdecode(np.frombuffer(stream.getvalue(), dtype=np.uint8), cv2.IMREAD_COLOR)
     # return cv2.imdecode(stream.getvalue(), cv2.IMREAD_COLOR)
+
+def async_signal(F):
+    def inner(loop, *args):
+        loop.run_until_complete(F(*args))
+
+    def outer(*args):
+        loop = asyncio.get_event_loop()
+        thread = threading.Thread(target=inner, args=(loop, *args))
+        thread.daemon = True
+        thread.start()
+
+    return outer
 
 
 class Fps:
