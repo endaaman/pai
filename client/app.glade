@@ -89,6 +89,8 @@
     <signal name="delete-event" handler="on_main_window_delete" swapped="no" />
     <signal name="button-press-event" handler="on_main_window_click" swapped="no" />
     <signal name="window-state-event" handler="on_main_window_state_event" swapped="no" />
+    <signal name="key-release-event" handler="on_main_window_key_release" swapped="no" />
+    <!-- <signal name="notify::position" handler="on_main_window_expose" swapped="no" /> -->
     <child>
       <object class="GtkOverlay" id="container_overlay">
         <child type="overlay">
@@ -96,7 +98,7 @@
           <!-- GstWidget -->
         </child>
         <child type="overlay">
-          <object class="GtkImage" id="result_image">
+          <object class="GtkImage" id="canvas_image">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
           </object>

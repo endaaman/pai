@@ -27,6 +27,13 @@ class GstWidget(Gtk.Box):
         w.show()
         self.pipeline.set_state(Gst.State.PLAYING)
 
+    def start(self):
+        if self.gtksink.get_property('widget').get_realized():
+            self.pipeline.set_state(Gst.State.PLAYING)
+
+    def stop(self):
+        self.pipeline.set_state(Gst.State.PAUSED)
+
     def on_message(self, bus, message):
         if message.type == Gst.MessageType.EOS:
             self.pipeline.set_state(Gst.State.NULL)

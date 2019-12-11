@@ -41,6 +41,8 @@ def async_signal(F):
 
     return outer
 
+async def glib_one_tick():
+    pass
 
 class Fps:
     def __init__(self):

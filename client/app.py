@@ -67,17 +67,19 @@ def find_results(results, mode, name):
     return None
 
 def get_grid_row_count(grid):
+    print('row counting')
     count = 0
     for child in grid.get_children():
         top = grid.child_get_property(child, 'top-attach')
         height = grid.child_get_property(child, 'width')
+        print(child, 'top:', top, ' height:', height)
         count = max(count, top + height)
     return count
 
 
 async def wait(s):
     print(f'start wait {s}')
-    await sleep(s)
+    await time.sleep(s)
     print(f'end wait {s}')
 
 class App:
@@ -87,12 +89,13 @@ class App:
         builder.add_from_file('client/app.glade')
 
         self.main_window = builder.get_object('main_window')
+        self.main_window.connect('notify::position', self.on_main_window_expose)
         self.container_overlay = builder.get_object('container_overlay')
         self.notifications_grid = builder.get_object('notifications_grid')
 
         self.connection_label = builder.get_object('connection_label')
         self.gst_widget = GstWidget(GST_SOURCE)
-        self.result_image = builder.get_object('result_image')
+        self.canvas_image = builder.get_object('canvas_image')
 
         self.control_window = builder.get_object('control_window')
         self.notebook = builder.get_object('notebook')
@@ -117,8 +120,10 @@ class App:
 
         self.results = Model([])
         self.notifications = Model(OrderedDict(), self.handler_notifications)
+        self.image = Model(None, self.handler_image)
         self.detail = Model(None, self.handler_detail)
         self.result = Model(None, self.handler_result)
+        self.results = Model(None)
         self.connection = Model(Connection.INITIALIZING, self.handler_connection)
         self.__last_triggered_time = None
 
@@ -133,13 +138,17 @@ class App:
         notifications_count = len([v for v in notifications.values() if v])
         if row_count < notifications_count:
             for top in range(row_count, notifications_count):
+                print('add row', top)
                 for left in [0, 1]:
                     label = Gtk.Label()
                     label.props.xalign = 0
                     self.notifications_grid.attach(label, left, top, 1, 1)
         if row_count > notifications_count:
             for r in range(notifications_count, row_count):
+                print('remove row:', r)
                 self.notifications_grid.remove_row(r)
+        print('old row count:', row_count)
+        print('new row count:', get_grid_row_count(self.notifications_grid))
         top = 0
         for key, value in notifications.items():
             if not value:
@@ -163,38 +172,49 @@ class App:
         self.set_notification([['Connection', connection.value]])
 
     def handler_result(self, result, old):
-        inspecting = result
-        scanning = not result
-        if scanning:
-            title = 'Scanning'
-        else:
+        if result:
             title = f'Inspecting: {result.name} ({result.mode})'
+        else:
+            title = 'Scanning'
         self.main_window.set_title(title)
 
-        self.analyze_menu.set_visible(scanning)
-        self.back_to_scan_menu.set_visible(inspecting)
+        self.analyze_menu.set_visible(not result)
+        self.back_to_scan_menu.set_visible(result)
         # self.inspect_menu.set_visible(inspecting)
-
-        self.gst_widget.set_visible(scanning)
-        self.result_image.set_visible(inspecting)
-
-        self.set_notification([
-            ['Mode', result.mode if inspecting else None],
-            ['Result', result.name if inspecting else None],
-        ])
-
+        # if result:
+        #     self.gst_widget.stop()
+        # else:
+        #     self.gst_widget.start()
+        self.gst_widget.set_visible(not result)
+        self.canvas_image.set_visible(result)
+        # self.set_notification([
+        #     ['Mode', result.mode if result else None],
+        #     ['Result', result.name if result else None],
+        # ])
         if not result:
             self.detail.set(None)
             return
         self.detail.set(Detail(result))
 
-    def handler_detail(self, detail, old):
+    @async_signal
+    async def handler_detail(self, detail, old):
         if not detail:
+            self.image.set(None)
             return
+        self.image.set(None)
         detail.download()
-        print(detail.original_image.shape)
-        if len(detail.overlay_images) > 0:
-            print(detail.overlays[0].shape)
+        self.image.set(detail.original_image)
+
+    def handler_image(self, image, old):
+        if not np.any(image):
+            self.canvas_image.clear()
+            return
+
+        self.adjust_canvas_image()
+
+    def on_main_window_expose(self, *args):
+        print('expose')
+        # self.adjust_canvas_image()
 
     def on_main_window_delete(self, *args):
         if self.ws.is_active():
@@ -211,7 +231,7 @@ class App:
         ###* GUARD END
 
         if event.button == 1:
-            self.notifications_grid.set_visible(not self.notifications_grid.get_visible())
+            # self.notifications_grid.set_visible(not self.notifications_grid.get_visible())
             return
 
         if event.button == 3:
@@ -241,12 +261,13 @@ class App:
             f'http://{API_HOST}/api/analyze',
             {'mode': 'camera'},
             files={'image': ('image.jpg', buffer.getvalue(), 'image/jpeg', {'Expires': '0'})})
-        self.results.set(Result(**r) for r in [res.json()['results']])
+        self.results.set([Result(**r) for r in [res.json()['results']]])
 
-    @async_signal
-    async def on_browser_menu_activate(self, *args):
-
-        self.main_window.set_title('done')
+    def on_browser_menu_activate(self, *args):
+        # self.gst_widget.set_visible(not self.gst_widget.get_visible())
+        row = get_grid_row_count(self.notifications_grid)
+        print(row)
+        # self.notifications_grid.remove_row(row-1)
 
     def on_back_to_scan_menu_activate(self, *args):
         self.result.set(None)
@@ -261,12 +282,17 @@ class App:
         else:
             self.main_window.unmaximize()
 
+    def on_main_window_key_release(self, widget, event, *args):
+       if event.keyval == Gdk.KEY_Escape:
+           widget.unmaximize()
+
     def on_quit_menu_activate(self, *args):
         self.main_window.close()
 
     def on_contorol_window_key_release(self, widget, event, *args):
        if event.keyval == Gdk.KEY_Escape:
             self.control_window.close()
+            return
 
     def on_contorol_window_delete(self, *args):
         self.control_window.hide()
@@ -280,6 +306,31 @@ class App:
         result = find_results(self.results.get(), row[1], row[0])
         self.result.set(result)
         self.control_window.hide()
+
+    def adjust_canvas_image(self):
+        image = self.image.get()
+        if not np.any(image):
+            return
+        win_w, win_h = self.main_window.get_size()
+        img_h, img_w, _ = image.shape
+        if win_w/win_h > img_w/img_w:
+            new_h = win_h
+            new_w = img_w * win_w / win_h
+        else:
+            new_w = win_w
+            new_h = img_h * win_h / win_w
+        print(new_w, new_h)
+        image = cv2.resize(image, None, fx=new_w/img_w, fy=new_h/img_h, interpolation=cv2.INTER_CUBIC)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        pb = GdkPixbuf.Pixbuf.new_from_data(
+                image.tostring(),
+                GdkPixbuf.Colorspace.RGB,
+                False,
+                8,
+                image.shape[1],
+                image.shape[0],
+                image.shape[2] * image.shape[1])
+        self.canvas_image.set_from_pixbuf(pb)
 
     def refresh_result_tree(self):
         if not self.control_window.get_visible():
@@ -330,6 +381,7 @@ class App:
                 continue
             self.results.set([Result(**r) for r in data['results']])
             self.connection.set(Connection.CONNECTED)
+            self.refresh_result_tree()
             time.sleep(SERVER_POLLING_INTERVAL)
 
     def start(self):
