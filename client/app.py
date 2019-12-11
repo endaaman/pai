@@ -67,12 +67,10 @@ def find_results(results, mode, name):
     return None
 
 def get_grid_row_count(grid):
-    print('row counting')
     count = 0
     for child in grid.get_children():
         top = grid.child_get_property(child, 'top-attach')
         height = grid.child_get_property(child, 'width')
-        print(child, 'top:', top, ' height:', height)
         count = max(count, top + height)
     return count
 
@@ -89,7 +87,7 @@ class App:
         builder.add_from_file('client/app.glade')
 
         self.main_window = builder.get_object('main_window')
-        self.main_window.connect('notify::position', self.on_main_window_expose)
+        self.main_window.connect('size-allocate', self.on_main_window_size_allocate)
         self.container_overlay = builder.get_object('container_overlay')
         self.notifications_grid = builder.get_object('notifications_grid')
 
@@ -138,17 +136,13 @@ class App:
         notifications_count = len([v for v in notifications.values() if v])
         if row_count < notifications_count:
             for top in range(row_count, notifications_count):
-                print('add row', top)
                 for left in [0, 1]:
                     label = Gtk.Label()
                     label.props.xalign = 0
                     self.notifications_grid.attach(label, left, top, 1, 1)
         if row_count > notifications_count:
-            for r in range(notifications_count, row_count):
-                print('remove row:', r)
+            for r in reversed(range(notifications_count, row_count)):
                 self.notifications_grid.remove_row(r)
-        print('old row count:', row_count)
-        print('new row count:', get_grid_row_count(self.notifications_grid))
         top = 0
         for key, value in notifications.items():
             if not value:
@@ -159,6 +153,7 @@ class App:
             value_label.set_label(value)
             top += 1
         self.notifications_grid.show_all()
+        Gtk.main_iteration()
 
     def set_notification(self, pairs):
         n = self.notifications.get()
@@ -187,10 +182,10 @@ class App:
         #     self.gst_widget.start()
         self.gst_widget.set_visible(not result)
         self.canvas_image.set_visible(result)
-        # self.set_notification([
-        #     ['Mode', result.mode if result else None],
-        #     ['Result', result.name if result else None],
-        # ])
+        self.set_notification([
+            ['Mode', result.mode if result else None],
+            ['Result', result.name if result else None],
+        ])
         if not result:
             self.detail.set(None)
             return
@@ -198,23 +193,22 @@ class App:
 
     @async_signal
     async def handler_detail(self, detail, old):
-        if not detail:
-            self.image.set(None)
-            return
         self.image.set(None)
+        if not detail:
+            return
         detail.download()
         self.image.set(detail.original_image)
 
     def handler_image(self, image, old):
-        if not np.any(image):
+        flag = not np.any(image)
+        if flag:
             self.canvas_image.clear()
             return
-
         self.adjust_canvas_image()
 
-    def on_main_window_expose(self, *args):
-        print('expose')
-        # self.adjust_canvas_image()
+    def on_main_window_size_allocate(self, *args):
+        if self.result.get():
+            self.adjust_canvas_image()
 
     def on_main_window_delete(self, *args):
         if self.ws.is_active():
@@ -231,7 +225,7 @@ class App:
         ###* GUARD END
 
         if event.button == 1:
-            # self.notifications_grid.set_visible(not self.notifications_grid.get_visible())
+            self.notifications_grid.set_visible(not self.notifications_grid.get_visible())
             return
 
         if event.button == 3:
@@ -313,12 +307,12 @@ class App:
             return
         win_w, win_h = self.main_window.get_size()
         img_h, img_w, _ = image.shape
-        if win_w/win_h > img_w/img_w:
+        if win_w/win_h > img_w/img_h:
+            new_w = img_w * win_h / img_h
             new_h = win_h
-            new_w = img_w * win_w / win_h
         else:
             new_w = win_w
-            new_h = img_h * win_h / win_w
+            new_h = img_h * win_w / img_w
         print(new_w, new_h)
         image = cv2.resize(image, None, fx=new_w/img_w, fy=new_h/img_h, interpolation=cv2.INTER_CUBIC)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)

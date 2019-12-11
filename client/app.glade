@@ -90,7 +90,7 @@
     <signal name="button-press-event" handler="on_main_window_click" swapped="no" />
     <signal name="window-state-event" handler="on_main_window_state_event" swapped="no" />
     <signal name="key-release-event" handler="on_main_window_key_release" swapped="no" />
-    <!-- <signal name="notify::position" handler="on_main_window_expose" swapped="no" /> -->
+    <signal name="size-allocate" handler="on_main_window_size_allocate" swapped="no" />
     <child>
       <object class="GtkOverlay" id="container_overlay">
         <child type="overlay">
@@ -115,6 +115,16 @@
                     <property name="can_focus">False</property>
                     <property name="row_spacing">4</property>
                     <property name="column_spacing">8</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="visible">True</property>
+                        <property name="label" translatable="yes">Settings</property>
+                      </object>
+                      <packing>
+                        <property name="left_attach">0</property>
+                        <property name="top_attach">0</property>
+                      </packing>
+                    </child>
                   </object>
                 </child>
               </object>
