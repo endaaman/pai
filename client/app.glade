@@ -90,7 +90,7 @@
     <signal name="button-press-event" handler="on_main_window_click" swapped="no" />
     <signal name="window-state-event" handler="on_main_window_state_event" swapped="no" />
     <signal name="key-release-event" handler="on_main_window_key_release" swapped="no" />
-    <signal name="size-allocate" handler="on_main_window_size_allocate" swapped="no" />
+    <!-- <signal name="size&#45;allocate" nandler="on_main_window_size_allocate" swapped="no" /> -->
     <child>
       <object class="GtkOverlay" id="container_overlay">
         <child type="overlay">

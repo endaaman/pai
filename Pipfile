@@ -20,3 +20,6 @@ pycairo = "*"
 pygobject = "*"
 opencv-python = "*"
 asyncio-glib = "*"
+aiohttp = "*"
+websockets = "*"
+gbulb = {git = "https://github.com/endaaman/gbulb.git",ref = "master"}

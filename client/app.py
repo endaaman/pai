@@ -10,16 +10,20 @@ import asyncio
 
 import numpy as np
 import cv2
-import requests
 
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gst', '1.0')
 from gi.repository import Gtk, Gdk, GLib, GdkPixbuf, Gst
+import gbulb
+import gbulb.gtk
 
-from utils import Fps, Model, check_device, download_image, async_signal
+from utils import Fps, Model, check_device, async_glib
+from api import download_image, upload_image
 from ws import WS
 from ui import GstWidget
+
+asyncio.set_event_loop_policy(gbulb.gtk.GtkEventLoopPolicy())
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-t', '--test', action="store_true")
@@ -28,8 +32,8 @@ args = parser.parse_args()
 ARG_TEST = args.test
 
 API_HOST = 'localhost:8080'
-RECONNECT_INTERVAL = 7
-SERVER_POLLING_INTERVAL = 7
+RECONNECT_INTERVAL = 5
+SERVER_POLLING_INTERVAL = 3
 RESULT_TREE_UPDATE_INTERVAL = 20 * 1000
 if not ARG_TEST and check_device('/dev/video0'):
     GST_SOURCE = 'v4l2src ! videoconvert'
@@ -45,13 +49,10 @@ class Detail:
         self.original_image = None
         self.overlay_images = []
 
-    def to_url(self, rel):
-        return f'http://{API_HOST}/{rel}'
-
-    def download(self):
-        self.original_image = download_image(self.to_url(self.result.original))
+    async def download(self):
+        self.original_image = await download_image(self.result.original)
         for o in self.result.overlays:
-            self.overlay_images.append(download_image(self.to_url(o)))
+            self.overlay_images.append(await download_image(o))
 
 class Connection(enum.Enum):
     INITIALIZING = 'Initializing'
@@ -83,11 +84,11 @@ async def wait(s):
 class App:
     def __init__(self):
         Gst.init(None)
+        self.loop = asyncio.get_event_loop()
         builder = Gtk.Builder()
         builder.add_from_file('client/app.glade')
 
         self.main_window = builder.get_object('main_window')
-        self.main_window.connect('size-allocate', self.on_main_window_size_allocate)
         self.container_overlay = builder.get_object('container_overlay')
         self.notifications_grid = builder.get_object('notifications_grid')
 
@@ -134,7 +135,9 @@ class App:
     def handler_notifications(self, notifications, old):
         row_count = get_grid_row_count(self.notifications_grid)
         notifications_count = len([v for v in notifications.values() if v])
+        changed = False
         if row_count < notifications_count:
+            changed = True
             for top in range(row_count, notifications_count):
                 for left in [0, 1]:
                     label = Gtk.Label()
@@ -147,13 +150,16 @@ class App:
         for key, value in notifications.items():
             if not value:
                 continue
+            changed = True
             key_label = self.notifications_grid.get_child_at(0, top)
             key_label.set_label(key + ':')
             value_label = self.notifications_grid.get_child_at(1, top)
             value_label.set_label(value)
             top += 1
         self.notifications_grid.show_all()
-        Gtk.main_iteration()
+        if changed:
+            pass
+            # Gtk.main_iteration()
 
     def set_notification(self, pairs):
         n = self.notifications.get()
@@ -191,12 +197,12 @@ class App:
             return
         self.detail.set(Detail(result))
 
-    @async_signal
+    @async_glib
     async def handler_detail(self, detail, old):
         self.image.set(None)
         if not detail:
             return
-        detail.download()
+        await detail.download()
         self.image.set(detail.original_image)
 
     def handler_image(self, image, old):
@@ -212,8 +218,9 @@ class App:
 
     def on_main_window_delete(self, *args):
         if self.ws.is_active():
-            self.ws.close()
-        Gtk.main_quit(*args)
+            self.task.cancel()
+        # Gtk.main_quit(*args)
+        self.loop.stop()
 
     def on_main_window_click(self, widget, event):
         ###* GUARD START
@@ -241,27 +248,23 @@ class App:
                 self.main_window.unfullscreen()
             self.fullscreen_toggler_menu.set_active(flag)
 
-    def on_analyze_menu_activate(self, *args):
+    @async_glib
+    async def on_analyze_menu_activate(self, *args):
         snapshot = self.gst_widget.take_snapshot()
-        if not np.any(snapshot):
-            print('Failed to take snapshot')
-            return
-        is_success, raw = cv2.imencode('.jpg', snapshot)
-        if not is_success:
-            print('ERROR')
-            return
-        buffer = io.BytesIO(raw)
-        res = requests.post(
-            f'http://{API_HOST}/api/analyze',
-            {'mode': 'camera'},
-            files={'image': ('image.jpg', buffer.getvalue(), 'image/jpeg', {'Expires': '0'})})
-        self.results.set([Result(**r) for r in [res.json()['results']]])
+        data = await upload_image('camera', snapshot)
+        self.results.set([Result(**r) for r in data['results']])
 
-    def on_browser_menu_activate(self, *args):
+    # async def heavy_process(self):
+    #     await asyncio.sleep(5)
+
+    @async_glib
+    async def on_browser_menu_activate(self, *args):
         # self.gst_widget.set_visible(not self.gst_widget.get_visible())
-        row = get_grid_row_count(self.notifications_grid)
-        print(row)
+        # row = get_grid_row_count(self.notifications_grid)
+        # print(row)
         # self.notifications_grid.remove_row(row-1)
+        await asyncio.sleep(3)
+        print('task: ', self.task)
 
     def on_back_to_scan_menu_activate(self, *args):
         self.result.set(None)
@@ -313,7 +316,6 @@ class App:
         else:
             new_w = win_w
             new_h = img_h * win_w / img_w
-        print(new_w, new_h)
         image = cv2.resize(image, None, fx=new_w/img_w, fy=new_h/img_h, interpolation=cv2.INTER_CUBIC)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         pb = GdkPixbuf.Pixbuf.new_from_data(
@@ -343,48 +345,40 @@ class App:
                 if r.mode != target_mode:
                     continue
             self.result_store.append([r.name, r.mode, r.original])
-        def adjust():
-            if len(selected_rows) > 0:
-                self.result_tree.set_cursor(selected_rows[0].get_indices()[0])
-            self.result_container.get_vadjustment().set_value(scroll_value)
-        GLib.idle_add(adjust)
+        while Gtk.events_pending():
+          Gtk.main_iteration()
+        if len(selected_rows) > 0:
+            self.result_tree.set_cursor(selected_rows[0].get_indices()[0])
+        self.result_container.get_vadjustment().set_value(scroll_value)
         return True # repeat
 
     def download_result(self):
         return
 
-    def thread_proc(self, *args):
-        self.ws.connect()
-        while self.main_window.get_visible():
+    async def ws_proc(self, *args):
+        print('ws_proc')
+        await self.ws.connect()
+        while self.loop.is_running():
             if not self.ws.is_active():
                 print('Try re-connect')
                 self.connection.set(Connection.DISCONNECTED)
                 self.results.set([])
-                time.sleep(RECONNECT_INTERVAL)
-                self.ws.connect()
+                await asyncio.sleep(RECONNECT_INTERVAL)
+                await self.ws.connect()
                 continue
-            text = self.ws.acquire_status()
-            if not text:
-                self.ws.close()
-                continue
-            try:
-                data = json.loads(text)
-            except json.JSONDecodeError:
-                print(f'PARSE ERROR: {data}')
-                self.ws.close()
-                continue
+            data = await self.ws.acquire_status()
             self.results.set([Result(**r) for r in data['results']])
             self.connection.set(Connection.CONNECTED)
             self.refresh_result_tree()
-            time.sleep(SERVER_POLLING_INTERVAL)
+            await asyncio.sleep(SERVER_POLLING_INTERVAL)
+        print('ws_proc terminated')
+
 
     def start(self):
-        thread = threading.Thread(target=self.thread_proc)
-        thread.daemon = True
-        thread.start()
         self.main_window.show_all()
         GLib.timeout_add(RESULT_TREE_UPDATE_INTERVAL, self.refresh_result_tree)
-        Gtk.main()
+        self.task = self.loop.create_task(self.ws_proc())
+        self.loop.run_forever()
 
 app = App()
 app.start()
