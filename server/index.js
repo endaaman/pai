@@ -65,15 +65,17 @@ function wait(s) {
 }
 
 class Result {
-  join(name) {
-    return pathlib.join(GENERATED_DIR, this.mode, this.name, name)
+  to_item(name) {
+    return {
+      name, path: pathlib.join(GENERATED_DIR, this.mode, this.name, name)
+    }
   }
   constructor(mode, name) {
     this.mode = mode
     this.name = name
     const def = MODE_DEFS[mode]
-    this.overlays = def.overlays.map((name) => this.join(name))
-    this.original = this.join(def.original)
+    this.original = this.to_item(def.original)
+    this.overlays = def.overlays.map((name) => this.to_item(name))
   }
   serialize() {
     return {
@@ -84,7 +86,7 @@ class Result {
     }
   }
   async validate() {
-    const items = [this.original, ...this.overlays]
+    const items = [this.original.path, ...this.overlays.map((o) => o.path)]
     for (const i of items) {
       let s
       try {

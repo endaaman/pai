@@ -7,6 +7,7 @@ import threading
 import enum
 from collections import namedtuple, OrderedDict
 import asyncio
+from urllib.parse import urljoin
 
 import numpy as np
 import cv2
@@ -18,10 +19,11 @@ from gi.repository import Gtk, Gdk, GLib, GdkPixbuf, Gst
 import gbulb
 import gbulb.gtk
 
-from utils import Fps, Model, check_device, async_glib
-from api import download_image, upload_image
+from utils import Fps, Model, debounce, check_device, async_glib, overlay_transparent
+from api import upload_image
 from ws import WS
 from ui import GstWidget
+from models import Result, Detail, convert_to_results, find_results
 
 asyncio.set_event_loop_policy(gbulb.gtk.GtkEventLoopPolicy())
 
@@ -40,32 +42,11 @@ if not ARG_TEST and check_device('/dev/video0'):
 else:
     GST_SOURCE = 'videotestsrc ! clockoverlay'
 
-Result = namedtuple('Result', ['name', 'mode', 'original', 'overlays'])
-
-
-class Detail:
-    def __init__(self, result):
-        self.result = result
-        self.original_image = None
-        self.overlay_images = []
-
-    async def download(self):
-        self.original_image = await download_image(self.result.original)
-        for o in self.result.overlays:
-            self.overlay_images.append(await download_image(o))
 
 class Connection(enum.Enum):
-    INITIALIZING = 'Initializing'
     DISCONNECTED = 'Disconnected'
     CONNECTED = 'Connected'
     UNKNOWN = '????'
-
-
-def find_results(results, mode, name):
-    for r in results:
-        if mode == r.mode and name == r.name:
-            return r
-    return None
 
 def get_grid_row_count(grid):
     count = 0
@@ -76,27 +57,38 @@ def get_grid_row_count(grid):
     return count
 
 
-async def wait(s):
-    print(f'start wait {s}')
-    await time.sleep(s)
-    print(f'end wait {s}')
-
 class App:
     def __init__(self):
         Gst.init(None)
         self.loop = asyncio.get_event_loop()
+
+        self.results = Model([])
+        self.notifications = Model(OrderedDict())
+        self.image = Model(None)
+        self.detail = Model(None)
+        self.results = Model(None)
+        self.result = Model(None)
+        self.opacity = Model(None)
+        self.connection = Model(Connection.DISCONNECTED)
+
         builder = Gtk.Builder()
         builder.add_from_file('client/app.glade')
 
         self.main_window = builder.get_object('main_window')
         self.container_overlay = builder.get_object('container_overlay')
+
+        self.control_box = builder.get_object('control_box')
         self.notifications_grid = builder.get_object('notifications_grid')
+        self.opacity_scale = builder.get_object('opacity_scale')
+        self.opacity_adjustment = builder.get_object('opacity_adjustment')
+        self.overlay_select_combo = builder.get_object('overlay_select_combo')
+        self.overlay_select_store = builder.get_object('overlay_select_store')
 
         self.connection_label = builder.get_object('connection_label')
         self.gst_widget = GstWidget(GST_SOURCE)
         self.canvas_image = builder.get_object('canvas_image')
 
-        self.control_window = builder.get_object('control_window')
+        self.menu_window = builder.get_object('menu_window')
         self.notebook = builder.get_object('notebook')
         self.result_container = builder.get_object('result_container')
         self.result_tree = builder.get_object('result_tree')
@@ -117,13 +109,15 @@ class App:
         self.ws = WS()
         self.fps = Fps()
 
-        self.results = Model([])
-        self.notifications = Model(OrderedDict(), self.handler_notifications)
-        self.image = Model(None, self.handler_image)
-        self.detail = Model(None, self.handler_detail)
-        self.result = Model(None, self.handler_result)
-        self.results = Model(None)
-        self.connection = Model(Connection.INITIALIZING, self.handler_connection)
+        self.main_window.show_all()
+
+        self.notifications.subscribe(self.handler_notifications, True)
+        self.image.subscribe(self.handler_image, True)
+        self.detail.subscribe(self.handler_detail, True)
+        # self.results.subscribe(self.handler_results, True)
+        self.result.subscribe(self.handler_result, True)
+        self.opacity.subscribe(self.handler_opacity, True)
+        self.connection.subscribe(self.handler_connection, True)
         self.__last_triggered_time = None
 
         provider = Gtk.CssProvider()
@@ -172,6 +166,7 @@ class App:
         self.analyze_menu.set_sensitive(connection == Connection.CONNECTED)
         self.set_notification([['Connection', connection.value]])
 
+
     def handler_result(self, result, old):
         if result:
             title = f'Inspecting: {result.name} ({result.mode})'
@@ -181,21 +176,34 @@ class App:
 
         self.analyze_menu.set_visible(not result)
         self.back_to_scan_menu.set_visible(result)
-        # self.inspect_menu.set_visible(inspecting)
-        # if result:
-        #     self.gst_widget.stop()
-        # else:
-        #     self.gst_widget.start()
+        self.opacity_scale.set_visible(result)
+        self.overlay_select_combo.set_visible(result)
         self.gst_widget.set_visible(not result)
         self.canvas_image.set_visible(result)
+
         self.set_notification([
             ['Mode', result.mode if result else None],
             ['Result', result.name if result else None],
         ])
+
+        if result:
+            for row in self.overlay_select_store:
+                if row[1] == -1:
+                    continue
+                self.overlay_select_store.remove(row.iter)
+            for i, o in enumerate(result.overlays):
+                self.overlay_select_store.append([o.name, i])
+
+        while Gtk.events_pending():
+          Gtk.main_iteration()
+
         if not result:
             self.detail.set(None)
             return
         self.detail.set(Detail(result))
+
+    def handler_opacity(self, detail, old):
+        pass
 
     @async_glib
     async def handler_detail(self, detail, old):
@@ -232,7 +240,7 @@ class App:
         ###* GUARD END
 
         if event.button == 1:
-            self.notifications_grid.set_visible(not self.notifications_grid.get_visible())
+            self.control_box.set_visible(not self.control_box.get_visible())
             return
 
         if event.button == 3:
@@ -248,29 +256,28 @@ class App:
                 self.main_window.unfullscreen()
             self.fullscreen_toggler_menu.set_active(flag)
 
+    def on_opacity_scale_changed(self, widget, *args):
+        def cb():
+            self.refresh_image()
+        debounce(100, cb)
+
+    def on_overlay_select_combo_changed(self, widget, *args):
+        self.refresh_image()
+
     @async_glib
     async def on_analyze_menu_activate(self, *args):
         snapshot = self.gst_widget.take_snapshot()
         data = await upload_image('camera', snapshot)
-        self.results.set([Result(**r) for r in data['results']])
+        self.results.set(convert_to_results(data['results']))
 
-    # async def heavy_process(self):
-    #     await asyncio.sleep(5)
-
-    @async_glib
-    async def on_browser_menu_activate(self, *args):
-        # self.gst_widget.set_visible(not self.gst_widget.get_visible())
-        # row = get_grid_row_count(self.notifications_grid)
-        # print(row)
-        # self.notifications_grid.remove_row(row-1)
-        await asyncio.sleep(3)
-        print('task: ', self.task)
+    def on_browser_menu_activate(self, *args):
+        print('open browser')
 
     def on_back_to_scan_menu_activate(self, *args):
         self.result.set(None)
 
     def on_menu_menu_activate(self, *args):
-        self.control_window.show_all()
+        self.menu_window.show_all()
         self.refresh_result_tree()
 
     def on_fullscreen_toggler_menu_toggled(self, widget, *args):
@@ -288,11 +295,11 @@ class App:
 
     def on_contorol_window_key_release(self, widget, event, *args):
        if event.keyval == Gdk.KEY_Escape:
-            self.control_window.close()
+            self.menu_window.close()
             return
 
     def on_contorol_window_delete(self, *args):
-        self.control_window.hide()
+        self.menu_window.hide()
         return True
 
     def on_result_filter_combo_changed(self, widget, *args):
@@ -302,7 +309,7 @@ class App:
         row = self.result_store[path]
         result = find_results(self.results.get(), row[1], row[0])
         self.result.set(result)
-        self.control_window.hide()
+        self.menu_window.hide()
 
     def adjust_canvas_image(self):
         image = self.image.get()
@@ -328,12 +335,27 @@ class App:
                 image.shape[2] * image.shape[1])
         self.canvas_image.set_from_pixbuf(pb)
 
+    def refresh_image(self):
+        if not self.result.get():
+            return
+        row = self.overlay_select_store[self.overlay_select_combo.get_active()]
+        selected_overlay_index = row[1]
+        detail = self.detail.get()
+        if selected_overlay_index == -1:
+            self.image.set(detail.original_image)
+            return
+        overlay = detail.overlay_images[selected_overlay_index]
+        opacity = self.opacity_adjustment.get_value() / 100
+        blended = overlay_transparent(detail.original_image, overlay, alpha=opacity)
+        self.image.set(blended)
+
+
     def refresh_result_tree(self):
-        if not self.control_window.get_visible():
+        if not self.menu_window.get_visible():
             return True
         active_filter = self.result_filter_combo.get_active()
         if active_filter > 0:
-            target_mode = self.result_filter_store[active_filter][0]
+            target_mode = self.result_filter_store[active_filter][1]
         else:
             target_mode = None
 
@@ -344,7 +366,7 @@ class App:
             if target_mode:
                 if r.mode != target_mode:
                     continue
-            self.result_store.append([r.name, r.mode, r.original])
+            self.result_store.append([r.name, r.mode, r.original.name])
         while Gtk.events_pending():
           Gtk.main_iteration()
         if len(selected_rows) > 0:
@@ -352,11 +374,7 @@ class App:
         self.result_container.get_vadjustment().set_value(scroll_value)
         return True # repeat
 
-    def download_result(self):
-        return
-
     async def ws_proc(self, *args):
-        print('ws_proc')
         await self.ws.connect()
         while self.loop.is_running():
             if not self.ws.is_active():
@@ -367,7 +385,8 @@ class App:
                 await self.ws.connect()
                 continue
             data = await self.ws.acquire_status()
-            self.results.set([Result(**r) for r in data['results']])
+            rr = convert_to_results(data['results'])
+            self.results.set(rr)
             self.connection.set(Connection.CONNECTED)
             self.refresh_result_tree()
             await asyncio.sleep(SERVER_POLLING_INTERVAL)
@@ -375,7 +394,6 @@ class App:
 
 
     def start(self):
-        self.main_window.show_all()
         GLib.timeout_add(RESULT_TREE_UPDATE_INTERVAL, self.refresh_result_tree)
         self.task = self.loop.create_task(self.ws_proc())
         self.loop.run_forever()

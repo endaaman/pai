@@ -11,9 +11,7 @@ dev = "python3 ./client/app.py --test"
 pylint = "*"
 
 [packages]
-requests = "*"
 pillow = "*"
-websocket-client = "*"
 matplotlib = "*"
 numpy = "*"
 pycairo = "*"

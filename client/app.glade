@@ -16,14 +16,35 @@
     <data>
       <row>
         <col id="0" translatable="yes">Filter mode</col>
+        <col id="1" translatable="yes">all</col>
       </row>
       <row>
-        <col id="0" translatable="yes">prostate</col>
+        <col id="0" translatable="yes">Prostate</col>
+        <col id="1" translatable="yes">prostate</col>
       </row>
       <row>
-        <col id="0" translatable="yes">camera</col>
+        <col id="0" translatable="yes">Camera</col>
+        <col id="1" translatable="yes">camera</col>
       </row>
     </data>
+  </object>
+  <object class="GtkListStore" id="overlay_select_store">
+    <columns>
+      <column type="gchararray"></column>
+      <column type="gint"></column>
+    </columns>
+    <data>
+      <row>
+        <col id="0" translatable="yes">Select overlay</col>
+        <col id="1" translatable="yes">-1</col>
+      </row>
+    </data>
+  </object>
+  <object class="GtkAdjustment" id="opacity_adjustment">
+    <property name="upper">100</property>
+    <property name="value">50</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
   </object>
 
   <object class="GtkMenu" id="menu">
@@ -90,7 +111,7 @@
     <signal name="button-press-event" handler="on_main_window_click" swapped="no" />
     <signal name="window-state-event" handler="on_main_window_state_event" swapped="no" />
     <signal name="key-release-event" handler="on_main_window_key_release" swapped="no" />
-    <!-- <signal name="size&#45;allocate" nandler="on_main_window_size_allocate" swapped="no" /> -->
+    <signal name="size-allocate" handler="on_main_window_size_allocate" swapped="no" />
     <child>
       <object class="GtkOverlay" id="container_overlay">
         <child type="overlay">
@@ -105,25 +126,51 @@
         </child>
         <child type="overlay">
           <object class="GtkBox">
-            <property name="orientation">vertical</property>
             <child>
               <object class="GtkBox">
+                <property name="orientation">vertical</property>
                 <child>
-                  <object class="GtkGrid" id="notifications_grid">
-                    <property name="name">notifications-grid</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="row_spacing">4</property>
-                    <property name="column_spacing">8</property>
+                  <object class="GtkBox" id="control_box">
+                    <property name="orientation">vertical</property>
+                    <property name="name">control-box</property>
+                    <property name="spacing">8</property>
+                    <!-- <style> -->
+                    <!--   <class name="yellow"/> -->
+                    <!-- </style> -->
                     <child>
-                      <object class="GtkLabel">
+                      <object class="GtkGrid" id="notifications_grid">
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes">Settings</property>
+                        <property name="can_focus">False</property>
+                        <property name="row_spacing">4</property>
+                        <property name="column_spacing">8</property>
                       </object>
-                      <packing>
-                        <property name="left_attach">0</property>
-                        <property name="top_attach">0</property>
-                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkComboBox" id="overlay_select_combo">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="model">overlay_select_store</property>
+                        <property name="active">0</property>
+                        <signal name="changed" handler="on_overlay_select_combo_changed" swapped="no" />
+                        <child>
+                          <object class="GtkCellRendererText"></object>
+                          <attributes>
+                            <attribute name="text">0</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkScale" id="opacity_scale">
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="round_digits">1</property>
+                        <property name="adjustment">opacity_adjustment</property>
+                        <!-- <signal name="button&#45;release&#45;event" handler="on_opacity_scale_changed" swapped="no" /> -->
+                        <!-- <signal name="key&#45;release&#45;event" handler="on_opacity_scale_changed" swapped="no" /> -->
+                        <!-- <signal name="value&#45;event" handler="on_opacity_scale_changed" swapped="no" /> -->
+                        <signal name="value-changed" handler="on_opacity_scale_changed" swapped="no" />
+                      </object>
                     </child>
                   </object>
                 </child>
@@ -135,7 +182,7 @@
     </child>
   </object>
 
-  <object class="GtkWindow" id="control_window">
+  <object class="GtkWindow" id="menu_window">
     <property name="title">Menu</property>
     <property name="can_focus">False</property>
     <property name="width_request">600</property>

@@ -28,7 +28,7 @@ class WS:
             print('Failed to connect', e)
             self.ws = None
             return
-        print('Connected')
+        return True
 
     async def acquire_status(self):
         try:

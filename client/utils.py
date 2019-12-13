@@ -1,11 +1,12 @@
 import io
 import os
 import threading
-import time
 import asyncio
+import time
+
 import cv2
-import requests
 import numpy as np
+from gi.repository import GLib
 
 
 FPS_SAMPLE_COUNT = 60
@@ -18,25 +19,21 @@ def check_device(p):
         return False
     return True
 
-def download_image(path):
-    r = requests.get(path, stream=True)
-    if r.status_code != 200:
-        print('not 200:', r.status_code, path)
-        return None
-    stream = io.BytesIO()
-    for chunk in r.iter_content(1024):
-        stream.write(chunk)
-    return cv2.imdecode(np.frombuffer(stream.getvalue(), dtype=np.uint8), cv2.IMREAD_COLOR)
-    # return cv2.imdecode(stream.getvalue(), cv2.IMREAD_COLOR)
-
 def async_glib(F):
     def inner(*args):
         loop = asyncio.get_event_loop()
         return loop.create_task(F(*args))
     return inner
 
-async def glib_one_tick():
-    pass
+
+last_timout_tag = None
+def debounce(duration, func):
+    global last_timout_tag
+    if last_timout_tag:
+        GLib.source_remove(last_timout_tag)
+        last_timout_tag = None
+    last_timout_tag = GLib.timeout_add(duration, func)
+
 
 class Fps:
     def __init__(self):
@@ -80,8 +77,10 @@ class Model():
             self.override_getter(getter)
         self.set(value)
 
-    def subscribe(self, hook):
+    def subscribe(self, hook, immediate=False):
         self.hook = hook
+        if immediate:
+            self.set(self.value)
 
     def override_getter(self, getter):
         self.getter = getter
@@ -97,3 +96,33 @@ class Model():
             return self.getter(self.value)
         return self.value
 
+def overlay_transparent(background, overlay, alpha=1.0, x=0, y=0):
+    background = np.copy(background)
+    background_width = background.shape[1]
+    background_height = background.shape[0]
+
+    if x >= background_width or y >= background_height:
+        return background
+
+    h, w = overlay.shape[0], overlay.shape[1]
+
+    if x + w > background_width:
+        w = background_width - x
+        overlay = overlay[:, :w]
+
+    if y + h > background_height:
+        h = background_height - y
+        overlay = overlay[:h]
+
+    if overlay.shape[2] < 4:
+        overlay = np.concatenate(
+            [
+                overlay,
+                np.ones((overlay.shape[0], overlay.shape[1], 1), dtype = overlay.dtype) * 255
+            ],
+            axis = 2,
+        )
+    overlay_image = overlay[..., :3]
+    mask = (overlay[..., 3:] / 255.0) * alpha
+    background[y:y+h, x:x+w] = (1.0 - mask) * background[y:y+h, x:x+w] + mask * overlay_image
+    return background
