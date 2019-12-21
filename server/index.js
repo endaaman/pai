@@ -34,7 +34,14 @@ const MODE_DEFS = {
   },
   prostate: {
     original: 'org.jpg',
-    overlays: ['out.png', 'heat_0.png', 'heat_1.png', 'heat_2.png', 'heat_3.png','heat_4.png'],
+    overlays: [
+      { filename: 'out.png', name: 'integrated' },
+      { filename: 'heat_0.png', name: 'none'},
+      { filename: 'heat_1.png', name: 'benign'},
+      { filename: 'heat_2.png', name: 'Gleason 3'},
+      { filename: 'heat_3.png', name: 'Gleason 4'},
+      { filename: 'heat_4.png', name: 'Gleason 5'},
+    ],
   },
 }
 
@@ -65,17 +72,15 @@ function wait(s) {
 }
 
 class Result {
-  to_item(name) {
-    return {
-      name, path: pathlib.join(GENERATED_DIR, this.mode, this.name, name)
-    }
+  to_path(a) {
+    return pathlib.join(GENERATED_DIR, this.mode, this.name, a)
   }
   constructor(mode, name) {
     this.mode = mode
     this.name = name
     const def = MODE_DEFS[mode]
-    this.original = this.to_item(def.original)
-    this.overlays = def.overlays.map((name) => this.to_item(name))
+    this.original = { name: 'original',  path: this.to_path(def.original)}
+    this.overlays = def.overlays.map((o) => ({ name: o.name, path: this.to_path(o.filename)}))
   }
   serialize() {
     return {
@@ -84,9 +89,10 @@ class Result {
       original: this.original,
       overlays: this.overlays,
     }
+    print()
   }
   async validate() {
-    const items = [this.original.path, ...this.overlays.map((o) => o.path)]
+    const items = [this.original, ...this.overlays.map((o) => o.path)]
     for (const i of items) {
       let s
       try {
@@ -159,11 +165,12 @@ class App {
     })
   }
   serialize() {
-    return {
+    const d = {
       queue: this.queue,
       current: this.current,
-      results: this.results,
+      results: this.results.map((r) => r.serialize()),
     }
+    return d
   }
   async load() {
     await this.loadResults()
@@ -199,7 +206,6 @@ const wss = new WebSocket.Server({ port: WS_PORT })
 wss.on('connection', (ws, socket, request) => {
   consola.log('Connected')
   ws.on('message', (message) => {
-    // consola.log('received: %s', message)
     ws.send(JSON.stringify(app.serialize()))
   })
 })

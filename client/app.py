@@ -272,6 +272,7 @@ class App:
 
     def on_browser_menu_activate(self, *args):
         print('open browser')
+        # self.opacity_scale.set_visible(not self.opacity_scale.get_visible())
 
     def on_back_to_scan_menu_activate(self, *args):
         self.result.set(None)
