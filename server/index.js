@@ -15,7 +15,7 @@ const koaSend = require('koa-send')
 const consola = require('consola')
 const chokidar = require('chokidar')
 
-const { Nuxt, Builder } = require('nuxt')
+// const { Nuxt, Builder } = require('nuxt')
 
 const config = require('../nuxt.config.js')
 const exec = util.promisify(childProcess.exec)
@@ -173,6 +173,7 @@ class App {
     return d
   }
   async load() {
+    await fs.mkdir(GENERATED_DIR, {recursive: true})
     await this.loadResults()
   }
   pushTask(mode, name) {
@@ -188,6 +189,8 @@ class App {
       this.current = null
       this.queue.shift()
       consola.log('DONE:', this.queue)
+    }).catch((e) => {
+      console.log('ERROR: ', e)
     })
     consola.log('CUR: ', this.queue)
   }
@@ -212,7 +215,7 @@ wss.on('connection', (ws, socket, request) => {
 
 const koa = new Koa()
 config.dev = koa.env !== 'production'
-const nuxt = new Nuxt(config)
+// const nuxt = new Nuxt(config)
 const router = new Router()
 const multer = koaMulter()
 
@@ -256,12 +259,12 @@ router.get('/generated/(.*)', async ctx => {
   })
 })
 
-router.all('*', (ctx) => {
-  ctx.status = 200
-  ctx.respond = false
-  ctx.req.ctx = ctx
-  nuxt.render(ctx.req, ctx.res)
-})
+// router.all('*', (ctx) => {
+//   ctx.status = 200
+//   ctx.respond = false
+//   ctx.req.ctx = ctx
+//   nuxt.render(ctx.req, ctx.res)
+// })
 
 koa.use(router.routes())
 koa.use(router.allowedMethods())
@@ -270,12 +273,12 @@ koa.use(koaBody({ multipart: true }))
 
 async function start() {
   ///* WITH NUXT
-  if (config.dev) {
-    const builder = new Builder(nuxt)
-    await builder.build()
-  } else {
-    await nuxt.ready()
-  }
+  // if (config.dev) {
+  //   const builder = new Builder(nuxt)
+  //   await builder.build()
+  // } else {
+  //   await nuxt.ready()
+  // }
   await app.load()
   koa.listen(API_PORT, HOST)
 }

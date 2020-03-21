@@ -2,6 +2,26 @@
 
 ### client
 
+```
+$ pipenv install
+
+$ pipenv run dev
+# or
+$ make client
+```
+
+### server
+
+```
+$ npm i
+
+$ npm run dev
+# or
+$ make server
+```
+
+### client
+
 - サーバー状態の表示
   - 処理中のアイテムの表示
   - 手動再接続
