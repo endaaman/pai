@@ -8,6 +8,8 @@ import cv2
 import numpy as np
 from gi.repository import GLib
 
+from gi.repository import GdkPixbuf
+
 
 FPS_SAMPLE_COUNT = 60
 FPS = 30
@@ -33,6 +35,24 @@ def debounce(duration, func):
         GLib.source_remove(last_timout_tag)
         last_timout_tag = None
     last_timout_tag = GLib.timeout_add(duration, func)
+
+def cv2pixbuf(self, img, color_converting=True):
+    if color_converting:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    return GdkPixbuf.Pixbuf.new_from_data(
+            img.tostring(),
+            GdkPixbuf.Colorspace.RGB,
+            False,
+            8,
+            image.shape[1],
+            image.shape[0],
+            image.shape[2] * image.shape[1])
+
+def pil2pixbuf(self, img):
+    arr = array.array('B', img.tostring())
+    width, height = img.size
+    return GdkPixbuf.Pixbuf.new_from_data(arr, GdkPixbuf.Colorspace.RGB,
+                                          True, 8, width, height, width * 4)
 
 
 class Fps:

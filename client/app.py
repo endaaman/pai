@@ -11,7 +11,7 @@ from urllib.parse import urljoin
 from pprint import pprint
 
 import numpy as np
-import cv2
+import cv2 # TODO: use PIL
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -64,11 +64,10 @@ class App:
         self.loop = asyncio.get_event_loop()
 
         self.results = Model([])
-        self.notifications = Model(OrderedDict(), [self.handler_notifications, self.handler_redraw])
+        self.notifications = Model(OrderedDict(), [self.handler_notifications, self.handler_redraw_main])
         self.image = Model(None, [self.handler_image])
         self.detail = Model(None, [self.handler_detail])
-        self.result = Model(None, [self.handler_result, self.handler_redraw])
-        self.opacity = Model(None, [self.handler_opacity])
+        self.result = Model(None, [self.handler_result, self.handler_redraw_main])
         self.connection = Model(Connection.DISCONNECTED, [self.handler_connection])
 
         builder = Gtk.Builder()
@@ -111,15 +110,12 @@ class App:
 
         self.main_window.show_all()
 
-        mm = [
-            self.notifications,
-            self.image,
-            self.detail,
-            self.opacity,
-            self.connection,
-            self.result,
-        ]
-        for m in mm:
+        for m in [
+                self.notifications,
+                self.image,
+                self.detail,
+                self.connection,
+                self.result, ]:
             m.flush()
 
         self.__last_triggered_time = None
@@ -134,12 +130,12 @@ class App:
         while Gtk.events_pending():
             Gtk.main_iteration()
 
-    def redraw(self, window):
+    def redraw_widget(self, window):
         window.queue_resize()
         self.flush_events()
 
-    def handler_redraw(self, _, old):
-        self.redraw(self.main_window)
+    def handler_redraw_main(self, value, old):
+        self.redraw_widget(self.main_window)
 
     def handler_notifications(self, notifications, old):
         row_count = get_grid_row_count(self.notifications_grid)
@@ -212,11 +208,6 @@ class App:
             return
         self.detail.set(Detail(result))
 
-    def handler_opacity(self, detail, old):
-        pprint('OPACITY')
-        self.flush_events()
-        self.opacity_scale.queue_resize()
-
     @async_glib
     async def handler_detail(self, detail, old):
         self.image.set(None)
@@ -253,6 +244,7 @@ class App:
 
         if event.button == 1:
             self.control_box.set_visible(not self.control_box.get_visible())
+            self.redraw_widget(self.main_window)
             return
 
         if event.button == 3:
@@ -269,10 +261,15 @@ class App:
             self.fullscreen_toggler_menu.set_active(flag)
 
     def on_opacity_scale_changed(self, widget, *args):
-        pprint('OPACITY')
-        # def cb():
-        #     self.refresh_image()
-        # debounce(100, cb)
+        def cb():
+            # self.opacity_scale.queue_draw()
+            # self.flush_events()
+            # self.refresh_image()
+            # self.redraw(self.main_window)
+        debounce(100, cb)
+
+        # needed to redraw scale slider
+        self.redraw_widget(self.main_window)
 
     def on_overlay_select_combo_changed(self, widget, *args):
         self.refresh_image()
@@ -338,15 +335,7 @@ class App:
             new_w = win_w
             new_h = img_h * win_w / img_w
         image = cv2.resize(image, None, fx=new_w/img_w, fy=new_h/img_h, interpolation=cv2.INTER_CUBIC)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        pb = GdkPixbuf.Pixbuf.new_from_data(
-                image.tostring(),
-                GdkPixbuf.Colorspace.RGB,
-                False,
-                8,
-                image.shape[1],
-                image.shape[0],
-                image.shape[2] * image.shape[1])
+        pb = cv2pixbuf(image)
         self.canvas_image.set_from_pixbuf(pb)
 
     def refresh_image(self):
@@ -385,7 +374,7 @@ class App:
             self.result_tree.set_cursor(selected_rows[0].get_indices()[0])
         self.result_container.get_vadjustment().set_value(scroll_value)
 
-        self.redraw(self.menu_window)
+        self.redraw_widget(self.menu_window)
         return True # repeat
 
     async def ws_proc_inner(self, *args):
