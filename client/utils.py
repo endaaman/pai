@@ -67,20 +67,14 @@ class Fps:
         self.count += 1
 
 class Model():
-    def __init__(self, value, hook=None, getter=None):
-        self.value = None
+    def __init__(self, value, hooks=[], getter=None):
         self.getter = None
-        self.hook = None
-        if hook:
-            self.subscribe(hook)
+        self.value = value
+        self.hooks = []
+        for hook in hooks:
+            self.hooks.append(hook)
         if getter:
             self.override_getter(getter)
-        self.set(value)
-
-    def subscribe(self, hook, immediate=False):
-        self.hook = hook
-        if immediate:
-            self.set(self.value)
 
     def override_getter(self, getter):
         self.getter = getter
@@ -88,8 +82,11 @@ class Model():
     def set(self, v):
         old_value = self.value
         self.value = v
-        if self.hook:
-            self.hook(v, old_value)
+        for hook in self.hooks:
+            hook(v, old_value)
+
+    def flush(self):
+        self.set(self.get())
 
     def get(self):
         if self.getter:

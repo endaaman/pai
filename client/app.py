@@ -8,6 +8,7 @@ import enum
 from collections import namedtuple, OrderedDict
 import asyncio
 from urllib.parse import urljoin
+from pprint import pprint
 
 import numpy as np
 import cv2
@@ -63,13 +64,12 @@ class App:
         self.loop = asyncio.get_event_loop()
 
         self.results = Model([])
-        self.notifications = Model(OrderedDict())
-        self.image = Model(None)
-        self.detail = Model(None)
-        self.results = Model([])
-        self.result = Model(None)
-        self.opacity = Model(None)
-        self.connection = Model(Connection.DISCONNECTED)
+        self.notifications = Model(OrderedDict(), [self.handler_notifications, self.handler_redraw])
+        self.image = Model(None, [self.handler_image])
+        self.detail = Model(None, [self.handler_detail])
+        self.result = Model(None, [self.handler_result, self.handler_redraw])
+        self.opacity = Model(None, [self.handler_opacity])
+        self.connection = Model(Connection.DISCONNECTED, [self.handler_connection])
 
         builder = Gtk.Builder()
         builder.add_from_file('client/app.glade')
@@ -111,13 +111,17 @@ class App:
 
         self.main_window.show_all()
 
-        self.notifications.subscribe(self.handler_notifications, True)
-        self.image.subscribe(self.handler_image, True)
-        self.detail.subscribe(self.handler_detail, True)
-        # self.results.subscribe(self.handler_results, True)
-        self.result.subscribe(self.handler_result, True)
-        self.opacity.subscribe(self.handler_opacity, True)
-        self.connection.subscribe(self.handler_connection, True)
+        mm = [
+            self.notifications,
+            self.image,
+            self.detail,
+            self.opacity,
+            self.connection,
+            self.result,
+        ]
+        for m in mm:
+            m.flush()
+
         self.__last_triggered_time = None
 
         provider = Gtk.CssProvider()
@@ -125,6 +129,17 @@ class App:
         screen = Gdk.Display.get_default_screen(Gdk.Display.get_default())
         Gtk.StyleContext.add_provider_for_screen(screen, provider, 600)
         # self.main_window.maximize()
+
+    def flush_events(self):
+        while Gtk.events_pending():
+            Gtk.main_iteration()
+
+    def redraw(self, window):
+        window.queue_resize()
+        self.flush_events()
+
+    def handler_redraw(self, _, old):
+        self.redraw(self.main_window)
 
     def handler_notifications(self, notifications, old):
         row_count = get_grid_row_count(self.notifications_grid)
@@ -153,7 +168,6 @@ class App:
         self.notifications_grid.show_all()
         if changed:
             pass
-            # Gtk.main_iteration()
 
     def set_notification(self, pairs):
         n = self.notifications.get()
@@ -165,7 +179,6 @@ class App:
         # self.connection_label.set_text(connection.value)
         self.analyze_menu.set_sensitive(connection == Connection.CONNECTED)
         self.set_notification([['Connection', connection.value]])
-
 
     def handler_result(self, result, old):
         if result:
@@ -194,16 +207,15 @@ class App:
             for i, o in enumerate(result.overlays):
                 self.overlay_select_store.append([o.name, i])
 
-        while Gtk.events_pending():
-          Gtk.main_iteration()
-
         if not result:
             self.detail.set(None)
             return
         self.detail.set(Detail(result))
 
     def handler_opacity(self, detail, old):
-        pass
+        pprint('OPACITY')
+        self.flush_events()
+        self.opacity_scale.queue_resize()
 
     @async_glib
     async def handler_detail(self, detail, old):
@@ -257,9 +269,10 @@ class App:
             self.fullscreen_toggler_menu.set_active(flag)
 
     def on_opacity_scale_changed(self, widget, *args):
-        def cb():
-            self.refresh_image()
-        debounce(100, cb)
+        pprint('OPACITY')
+        # def cb():
+        #     self.refresh_image()
+        # debounce(100, cb)
 
     def on_overlay_select_combo_changed(self, widget, *args):
         self.refresh_image()
@@ -271,7 +284,7 @@ class App:
         self.results.set(convert_to_results(data['results']))
 
     def on_browser_menu_activate(self, *args):
-        print('open browser')
+        print('TODO: open browser')
         # self.opacity_scale.set_visible(not self.opacity_scale.get_visible())
 
     def on_back_to_scan_menu_activate(self, *args):
@@ -368,11 +381,11 @@ class App:
                 if r.mode != target_mode:
                     continue
             self.result_store.append([r.name, r.mode, r.original.name])
-        while Gtk.events_pending():
-          Gtk.main_iteration()
         if len(selected_rows) > 0:
             self.result_tree.set_cursor(selected_rows[0].get_indices()[0])
         self.result_container.get_vadjustment().set_value(scroll_value)
+
+        self.redraw(self.menu_window)
         return True # repeat
 
     async def ws_proc_inner(self, *args):
