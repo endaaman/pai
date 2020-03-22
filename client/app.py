@@ -66,7 +66,7 @@ class App:
         self.notifications = Model(OrderedDict())
         self.image = Model(None)
         self.detail = Model(None)
-        self.results = Model(None)
+        self.results = Model([])
         self.result = Model(None)
         self.opacity = Model(None)
         self.connection = Model(Connection.DISCONNECTED)
@@ -387,6 +387,7 @@ class App:
                 continue
             data = await self.ws.acquire_status()
             rr = convert_to_results(data['results'])
+            pprint(rr)
             self.results.set(rr)
             self.connection.set(Connection.CONNECTED)
             self.refresh_result_tree()

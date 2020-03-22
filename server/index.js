@@ -89,14 +89,13 @@ class Result {
       original: this.original,
       overlays: this.overlays,
     }
-    print()
   }
   async validate() {
     const items = [this.original, ...this.overlays.map((o) => o.path)]
     for (const i of items) {
       let s
       try {
-        s = await fs.stat(i)
+        s = await fs.stat(i.path)
       } catch(e) {
         if (e.code === 'ENOENT') {
           return false
@@ -172,7 +171,7 @@ class App {
     }
     return d
   }
-  async load() {
+  async init() {
     await fs.mkdir(GENERATED_DIR, {recursive: true})
     await this.loadResults()
   }
@@ -279,7 +278,7 @@ async function start() {
   // } else {
   //   await nuxt.ready()
   // }
-  await app.load()
+  await app.init()
   koa.listen(API_PORT, HOST)
 }
 

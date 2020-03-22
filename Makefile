@@ -4,4 +4,4 @@ server:
 	npm run watch
 
 client:
-	python client/app.py
+	pipenv run client
