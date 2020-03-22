@@ -375,7 +375,7 @@ class App:
         self.result_container.get_vadjustment().set_value(scroll_value)
         return True # repeat
 
-    async def ws_proc(self, *args):
+    async def ws_proc_inner(self, *args):
         await self.ws.connect()
         while self.loop.is_running():
             if not self.ws.is_active():
@@ -387,12 +387,17 @@ class App:
                 continue
             data = await self.ws.acquire_status()
             rr = convert_to_results(data['results'])
-            pprint(rr)
             self.results.set(rr)
             self.connection.set(Connection.CONNECTED)
             self.refresh_result_tree()
             await asyncio.sleep(SERVER_POLLING_INTERVAL)
         print('ws_proc terminated')
+
+    async def ws_proc(self):
+        try:
+            return await self.ws_proc_inner()
+        except Exception as e:
+            print('Error in ws_proc: ', e)
 
 
     def start(self):
