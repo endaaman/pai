@@ -1,5 +1,4 @@
-from .app import App
-
+from pai import App
 
 def main():
     app = App()

@@ -19,11 +19,11 @@ from gi.repository import Gtk, Gdk, GLib, GdkPixbuf, Gst
 import gbulb
 import gbulb.gtk
 
-from utils import Fps, Model, debounce, check_device, async_glib, overlay_transparent
-from api import upload_image
-from ws import WS
-from ui import GstWidget
-from models import Result, Detail, convert_to_results, find_results
+from .utils import Fps, Model, debounce, check_device, async_glib, overlay_transparent
+from .api import upload_image
+from .ws import WS
+from .ui import GstWidget
+from .models import Result, Detail, convert_to_results, find_results
 
 asyncio.set_event_loop_policy(gbulb.gtk.GtkEventLoopPolicy())
 
@@ -70,7 +70,7 @@ class App:
         self.connection = Model(Connection.DISCONNECTED, [self.handler_connection])
 
         builder = Gtk.Builder()
-        builder.add_from_file('client/app.glade')
+        builder.add_from_file(os.path.dirname(__file__) + '/app.glade')
 
         self.main_window = builder.get_object('main_window')
         self.container_overlay = builder.get_object('container_overlay')
@@ -120,7 +120,7 @@ class App:
         self.__last_triggered_time = None
 
         provider = Gtk.CssProvider()
-        provider.load_from_path('client/app.css')
+        provider.load_from_path(os.path.dirname(__file__) + '/app.css')
         screen = Gdk.Display.get_default_screen(Gdk.Display.get_default())
         Gtk.StyleContext.add_provider_for_screen(screen, provider, 600)
         # self.main_window.maximize()

@@ -1,6 +1,6 @@
 from collections import namedtuple, OrderedDict
 
-from api import download_image
+from .api import download_image
 
 ResultImageItem = namedtuple('ResultImageItem', ['name', 'path'])
 Result = namedtuple('Result', ['name', 'mode', 'original', 'overlays'])

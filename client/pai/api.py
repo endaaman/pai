@@ -1,10 +1,11 @@
 import io
 from urllib.parse import urljoin
 
+from PIL import Image
+import numpy as np
 import aiohttp
 import asyncio
-import numpy as np
-import StringIO
+import io
 
 
 API_HOST = 'http://localhost:8080'
@@ -24,7 +25,7 @@ async def download_image(path):
                     break
                 stream.write(chunk)
 
-            img = Image.open(StringIO.StringIO(stream.getvalue()))
+            img = Image.open(io.BytesIO(stream.getvalue()))
             img.save('hoge.png')
             exit()
             return img

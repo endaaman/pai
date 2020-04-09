@@ -4,7 +4,6 @@ import threading
 import asyncio
 import time
 
-import cv2
 import numpy as np
 from gi.repository import GLib
 
