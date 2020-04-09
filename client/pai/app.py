@@ -11,7 +11,6 @@ from urllib.parse import urljoin
 from pprint import pprint
 
 import numpy as np
-import cv2 # TODO: use PIL
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -266,7 +265,7 @@ class App:
             # self.flush_events()
             # self.refresh_image()
             # self.redraw(self.main_window)
-        debounce(100, cb)
+            debounce(100, cb)
 
         # needed to redraw scale slider
         self.redraw_widget(self.main_window)
@@ -406,6 +405,3 @@ class App:
         GLib.timeout_add(RESULT_TREE_UPDATE_INTERVAL, self.refresh_result_tree)
         self.task = self.loop.create_task(self.ws_proc())
         self.loop.run_forever()
-
-app = App()
-app.start()

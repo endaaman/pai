@@ -1,9 +1,10 @@
 import io
-import cv2
+from urllib.parse import urljoin
+
 import aiohttp
 import asyncio
 import numpy as np
-from urllib.parse import urljoin
+import StringIO
 
 
 API_HOST = 'http://localhost:8080'
@@ -22,7 +23,10 @@ async def download_image(path):
                 if not chunk:
                     break
                 stream.write(chunk)
-            img = cv2.imdecode(np.frombuffer(stream.getvalue(), dtype=np.uint8), cv2.IMREAD_UNCHANGED)
+
+            img = Image.open(StringIO.StringIO(stream.getvalue()))
+            img.save('hoge.png')
+            exit()
             return img
             # return cv2.imdecode(stream.getvalue(), cv2.IMREAD_COLOR)
 
