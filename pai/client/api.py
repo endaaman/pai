@@ -7,9 +7,8 @@ import aiohttp
 import asyncio
 import io
 
+from .config import API_HOST, CHUNK_SIZE
 
-API_HOST = 'http://localhost:8080'
-CHUNK_SIZE = 1024
 
 async def download_image(path):
     async with aiohttp.ClientSession() as session:

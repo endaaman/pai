@@ -2,7 +2,6 @@ import os
 import io
 import json
 import time
-import argparse
 import threading
 import enum
 from collections import namedtuple, OrderedDict
@@ -24,23 +23,10 @@ from .api import upload_image
 from .ws import WS
 from .ui import GstWidget
 from .models import Result, Detail, convert_to_results, find_results
+from .config import GST_SOURCE, RESULT_TREE_UPDATE_INTERVAL, SERVER_POLLING_INTERVAL, RECONNECT_INTERVAL
+
 
 asyncio.set_event_loop_policy(gbulb.gtk.GtkEventLoopPolicy())
-
-parser = argparse.ArgumentParser()
-parser.add_argument('-t', '--test', action="store_true")
-args = parser.parse_args()
-
-ARG_TEST = args.test
-
-API_HOST = 'localhost:8080'
-RECONNECT_INTERVAL = 5
-SERVER_POLLING_INTERVAL = 3
-RESULT_TREE_UPDATE_INTERVAL = 20 * 1000
-if not ARG_TEST and check_device('/dev/video0'):
-    GST_SOURCE = 'v4l2src ! videoconvert'
-else:
-    GST_SOURCE = 'videotestsrc ! clockoverlay'
 
 
 class Connection(enum.Enum):

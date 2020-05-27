@@ -5,8 +5,8 @@ description = ""
 authors = ["endaaman <buhibuhidog@gmail.com>"]
 
 [tool.poetry.scripts]
-client = "main:client"
-server = "main:server"
+client = "entrypoint:client"
+server = "entrypoint:server"
 
 [tool.poetry.dependencies]
 python = ">=3.6.1, <4"
@@ -17,6 +17,7 @@ pycairo = "^1.19.1"
 asyncio-glib = "^0.1"
 aiohttp = "^3.6.2"
 websockets = "^8.1"
+flask = "^1.1.2"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.4.4"
