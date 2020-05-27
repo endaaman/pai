@@ -9,7 +9,7 @@ client = "main:client"
 server = "main:server"
 
 [tool.poetry.dependencies]
-python = ">=3.5, <4"
+python = ">=3.6.1, <4"
 numpy = "^1.18.2"
 gbulb = { git = "https://github.com/endaaman/gbulb.git", branch = "master" }
 pillow = "^7.1.1"
