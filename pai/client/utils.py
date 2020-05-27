@@ -3,6 +3,7 @@ import os
 import threading
 import asyncio
 import time
+import array
 
 import numpy as np
 from gi.repository import GLib
@@ -20,11 +21,12 @@ def check_device(p):
         return False
     return True
 
-def async_glib(F):
-    def inner(*args):
-        loop = asyncio.get_event_loop()
-        return loop.create_task(F(*args))
-    return inner
+def async_glib(loop):
+    def _async_glib(F):
+        def inner(*args):
+            return loop.create_task(F(*args))
+        return inner
+    return _async_glib
 
 
 last_timout_tag = None
@@ -39,19 +41,23 @@ def cv2pixbuf(self, img, color_converting=True):
     if color_converting:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     return GdkPixbuf.Pixbuf.new_from_data(
-            img.tostring(),
-            GdkPixbuf.Colorspace.RGB,
-            False,
-            8,
-            image.shape[1],
-            image.shape[0],
-            image.shape[2] * image.shape[1])
+        img.tobytes(),
+        GdkPixbuf.Colorspace.RGB,
+        False,
+        8,
+        image.shape[1],
+        image.shape[0],
+        image.shape[2] * image.shape[1])
 
-def pil2pixbuf(self, img):
-    arr = array.array('B', img.tostring())
+def pil2pixbuf(img):
+    arr = array.array('B', img.tobytes())
     width, height = img.size
-    return GdkPixbuf.Pixbuf.new_from_data(arr, GdkPixbuf.Colorspace.RGB,
-                                          True, 8, width, height, width * 4)
+    bands = img.getbands()
+    if 'A' in bands:
+        mode = GdkPixbuf.Colorspace.RGBA
+    else:
+        mode = GdkPixbuf.Colorspace.RGB
+    return GdkPixbuf.Pixbuf.new_from_data(arr, mode, False, 8, width, height, len(bands) * img.width)
 
 
 class Fps:
@@ -85,32 +91,30 @@ class Fps:
             return
         self.count += 1
 
-class Model():
-    def __init__(self, value, hooks=[], getter=None):
-        self.getter = None
-        self.value = value
-        self.hooks = []
-        for hook in hooks:
-            self.hooks.append(hook)
-        if getter:
-            self.override_getter(getter)
+def create_model(handler, loop):
+    class _Model():
+        def __init__(self, name, value):
+            self.name = name
+            self.value = value
+            self.changed = False
 
-    def override_getter(self, getter):
-        self.getter = getter
+        async def inner(self, v):
+            await asyncio.sleep(0)
+            self.changed = True
+            handler()
+            self.changed = False
 
-    def set(self, v):
-        old_value = self.value
-        self.value = v
-        for hook in self.hooks:
-            hook(v, old_value)
+        def set(self, v):
+            org = self.value
+            self.value = v
+            if org != v:
+                print(f'Model[{self.name}] updated: ', org, ' -> ', v)
+                loop.create_task(self.inner(v))
 
-    def flush(self):
-        self.set(self.get())
+        def get(self):
+            return self.value
 
-    def get(self):
-        if self.getter:
-            return self.getter(self.value)
-        return self.value
+    return _Model
 
 def overlay_transparent(background, overlay, alpha=1.0, x=0, y=0):
     background = np.copy(background)

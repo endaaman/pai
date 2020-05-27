@@ -119,7 +119,11 @@
           <!-- GstWidget -->
         </child>
         <child type="overlay">
-          <object class="GtkImage" id="canvas_image">
+          <object class="GtkImage" id="overlay_image">
+            <property name="visible">False</property>
+            <property name="can_focus">False</property>
+          </object>
+          <object class="GtkImage" id="original_image">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
           </object>
@@ -131,6 +135,7 @@
                 <property name="orientation">vertical</property>
                 <child>
                   <object class="GtkBox" id="control_box">
+                    <property name="visible">False</property>
                     <property name="orientation">vertical</property>
                     <property name="name">control-box</property>
                     <property name="spacing">8</property>

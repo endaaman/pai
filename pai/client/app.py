@@ -4,6 +4,7 @@ import json
 import time
 import threading
 import enum
+import math
 from collections import namedtuple, OrderedDict
 import asyncio
 from urllib.parse import urljoin
@@ -18,21 +19,17 @@ from gi.repository import Gtk, Gdk, GLib, GdkPixbuf, Gst
 import gbulb
 import gbulb.gtk
 
-from .utils import Fps, Model, debounce, check_device, async_glib, overlay_transparent
-from .api import upload_image
+from .utils import create_model, debounce, check_device, async_glib, pil2pixbuf
+from .api import upload_image, download_image
 from .ws import WS
 from .ui import GstWidget
-from .models import Result, Detail, convert_to_results, find_results
-from .config import GST_SOURCE, RESULT_TREE_UPDATE_INTERVAL, SERVER_POLLING_INTERVAL, RECONNECT_INTERVAL
+from .models import Result, Detail
+from .config import GST_SOURCE, RESULT_TREE_UPDATE_INTERVAL, RECONNECT_INTERVAL
 
 
 asyncio.set_event_loop_policy(gbulb.gtk.GtkEventLoopPolicy())
+loop = asyncio.get_event_loop()
 
-
-class Connection(enum.Enum):
-    DISCONNECTED = 'Disconnected'
-    CONNECTED = 'Connected'
-    UNKNOWN = '????'
 
 def get_grid_row_count(grid):
     count = 0
@@ -46,14 +43,12 @@ def get_grid_row_count(grid):
 class App:
     def __init__(self):
         Gst.init(None)
-        self.loop = asyncio.get_event_loop()
 
-        self.results = Model([])
-        self.notifications = Model(OrderedDict(), [self.handler_notifications, self.handler_redraw_main])
-        self.image = Model(None, [self.handler_image])
-        self.detail = Model(None, [self.handler_detail])
-        self.result = Model(None, [self.handler_result, self.handler_redraw_main])
-        self.connection = Model(Connection.DISCONNECTED, [self.handler_connection])
+        Model = create_model(self.update_view, loop)
+
+        self.detail = Model('detail', None)
+        self.result = Model('result', None)
+        self.show_control = Model('show_control', False)
 
         builder = Gtk.Builder()
         builder.add_from_file(os.path.dirname(__file__) + '/app.glade')
@@ -64,13 +59,11 @@ class App:
         self.control_box = builder.get_object('control_box')
         self.notifications_grid = builder.get_object('notifications_grid')
         self.opacity_scale = builder.get_object('opacity_scale')
-        self.opacity_adjustment = builder.get_object('opacity_adjustment')
         self.overlay_select_combo = builder.get_object('overlay_select_combo')
         self.overlay_select_store = builder.get_object('overlay_select_store')
 
-        self.connection_label = builder.get_object('connection_label')
         self.gst_widget = GstWidget(GST_SOURCE)
-        self.canvas_image = builder.get_object('canvas_image')
+        self.original_image = builder.get_object('original_image')
 
         self.menu_window = builder.get_object('menu_window')
         self.notebook = builder.get_object('notebook')
@@ -90,19 +83,6 @@ class App:
 
         builder.connect_signals(self)
 
-        self.ws = WS()
-        self.fps = Fps()
-
-        self.main_window.show_all()
-
-        for m in [
-                self.notifications,
-                self.image,
-                self.detail,
-                self.connection,
-                self.result, ]:
-            m.flush()
-
         self.__last_triggered_time = None
 
         provider = Gtk.CssProvider()
@@ -110,6 +90,9 @@ class App:
         screen = Gdk.Display.get_default_screen(Gdk.Display.get_default())
         Gtk.StyleContext.add_provider_for_screen(screen, provider, 600)
         # self.main_window.maximize()
+
+        self.main_window.show_all()
+        self.update_view(True)
 
     def flush_events(self):
         while Gtk.events_pending():
@@ -119,104 +102,73 @@ class App:
         window.queue_resize()
         self.flush_events()
 
-    def handler_redraw_main(self, value, old):
+    def update_view(self, force=False):
+        print('update_view')
+        result = self.result.get()
+        detail = self.detail.get()
+        show_control = self.show_control.get()
+
+        if force or self.result.changed:
+            print('update_view: result')
+            if result:
+                title = f'Inspecting: {result.name}'
+            else:
+                title = 'Scanning'
+            self.main_window.set_title(title)
+            self.analyze_menu.set_visible(not result)
+            self.back_to_scan_menu.set_visible(result)
+            self.opacity_scale.set_visible(result)
+            self.overlay_select_combo.set_visible(result)
+            self.gst_widget.set_visible(not result)
+            self.original_image.set_visible(result)
+
+            if result:
+                for row in self.overlay_select_store:
+                    if row[1] == -1:
+                        continue
+                    self.overlay_select_store.remove(row.iter)
+                for i, o in enumerate(result.overlays):
+                    self.overlay_select_store.append([o.name, i])
+
+            if not result:
+                self.detail.set(None)
+            else:
+                self.download_detail()
+                # ↓↓↓danger↓↓↓
+                # self.show_control.set(True)
+
+        if force or self.detail.changed:
+            print('update_view: detail')
+            if detail:
+                self.adjust_image()
+            else:
+                self.original_image.clear()
+
+        if force or self.show_control.changed:
+            print('update_view: show_control')
+            self.control_box.set_visible(show_control and self.result.get())
+
         self.redraw_widget(self.main_window)
 
-    def handler_notifications(self, notifications, old):
-        row_count = get_grid_row_count(self.notifications_grid)
-        notifications_count = len([v for v in notifications.values() if v])
-        changed = False
-        if row_count < notifications_count:
-            changed = True
-            for top in range(row_count, notifications_count):
-                for left in [0, 1]:
-                    label = Gtk.Label()
-                    label.props.xalign = 0
-                    self.notifications_grid.attach(label, left, top, 1, 1)
-        if row_count > notifications_count:
-            for r in reversed(range(notifications_count, row_count)):
-                self.notifications_grid.remove_row(r)
-        top = 0
-        for key, value in notifications.items():
-            if not value:
-                continue
-            changed = True
-            key_label = self.notifications_grid.get_child_at(0, top)
-            key_label.set_label(key + ':')
-            value_label = self.notifications_grid.get_child_at(1, top)
-            value_label.set_label(value)
-            top += 1
-        self.notifications_grid.show_all()
-        if changed:
-            pass
+    @async_glib(loop)
+    async def download_detail(self):
+        print('download_detail')
+        result = self.result.get()
+        original_image = await download_image('/'.join(['generated', result.name, result.original]))
+        overlay_images = []
+        for o in result.overlays:
+            i = await download_image('/'.join(['generated', result.name, o]))
+            overlay_images.append(i)
 
-    def set_notification(self, pairs):
-        n = self.notifications.get()
-        for pair in pairs:
-            n[pair[0]] = pair[1]
-        self.notifications.set(n)
-
-    def handler_connection(self, connection, old):
-        # self.connection_label.set_text(connection.value)
-        self.analyze_menu.set_sensitive(connection == Connection.CONNECTED)
-        self.set_notification([['Connection', connection.value]])
-
-    def handler_result(self, result, old):
-        if result:
-            title = f'Inspecting: {result.name} ({result.mode})'
-        else:
-            title = 'Scanning'
-        self.main_window.set_title(title)
-
-        self.analyze_menu.set_visible(not result)
-        self.back_to_scan_menu.set_visible(result)
-        self.opacity_scale.set_visible(result)
-        self.overlay_select_combo.set_visible(result)
-        self.gst_widget.set_visible(not result)
-        self.canvas_image.set_visible(result)
-
-        self.set_notification([
-            ['Mode', result.mode if result else None],
-            ['Result', result.name if result else None],
-        ])
-
-        if result:
-            for row in self.overlay_select_store:
-                if row[1] == -1:
-                    continue
-                self.overlay_select_store.remove(row.iter)
-            for i, o in enumerate(result.overlays):
-                self.overlay_select_store.append([o.name, i])
-
-        if not result:
-            self.detail.set(None)
-            return
-        self.detail.set(Detail(result))
-
-    @async_glib
-    async def handler_detail(self, detail, old):
-        self.image.set(None)
-        if not detail:
-            return
-        await detail.download()
-        self.image.set(detail.original_image)
-
-    def handler_image(self, image, old):
-        flag = not np.any(image)
-        if flag:
-            self.canvas_image.clear()
-            return
-        self.adjust_canvas_image()
+        self.detail.set(Detail(result, original_image, overlay_images))
 
     def on_main_window_size_allocate(self, *args):
         if self.result.get():
-            self.adjust_canvas_image()
+            self.adjust_image()
 
     def on_main_window_delete(self, *args):
-        if self.ws.is_active():
-            self.task.cancel()
         # Gtk.main_quit(*args)
-        self.loop.stop()
+        loop.stop()
 
     def on_main_window_click(self, widget, event):
         ###* GUARD START
@@ -228,7 +180,7 @@ class App:
         ###* GUARD END
 
         if event.button == 1:
-            self.control_box.set_visible(not self.control_box.get_visible())
+            self.show_control.set(not self.show_control.get())
             self.redraw_widget(self.main_window)
             return
 
@@ -246,24 +198,24 @@ class App:
             self.fullscreen_toggler_menu.set_active(flag)
 
     def on_opacity_scale_changed(self, widget, *args):
-        def cb():
-            # self.opacity_scale.queue_draw()
-            # self.flush_events()
-            # self.refresh_image()
-            # self.redraw(self.main_window)
-            debounce(100, cb)
-
+        # def cb():
+        #     self.opacity_scale.queue_draw()
+        #     self.flush_events()
+        #     self.refresh_image()
+        #     self.redraw(self.main_window)
+        print('scale:', self.opacity_scale.get_value())
         # needed to redraw scale slider
         self.redraw_widget(self.main_window)
+
 
     def on_overlay_select_combo_changed(self, widget, *args):
         self.refresh_image()
 
-    @async_glib
+    @async_glib(loop)
     async def on_analyze_menu_activate(self, *args):
         snapshot = self.gst_widget.take_snapshot()
-        data = await upload_image('camera', snapshot)
-        self.results.set(convert_to_results(data['results']))
+        result = await upload_image(snapshot)
+        self.result.set(result)
 
     def on_browser_menu_activate(self, *args):
         print('TODO: open browser')
@@ -283,14 +235,14 @@ class App:
             self.main_window.unmaximize()
 
     def on_main_window_key_release(self, widget, event, *args):
-       if event.keyval == Gdk.KEY_Escape:
-           widget.unmaximize()
+        if event.keyval == Gdk.KEY_Escape:
+            widget.unmaximize()
 
     def on_quit_menu_activate(self, *args):
         self.main_window.close()
 
     def on_contorol_window_key_release(self, widget, event, *args):
-       if event.keyval == Gdk.KEY_Escape:
+        if event.keyval == Gdk.KEY_Escape:
             self.menu_window.close()
             return
 
@@ -302,28 +254,34 @@ class App:
         self.refresh_result_tree()
 
     def on_result_tree_row_activated(self, widget, path, column):
-        row = self.result_store[path]
-        result = find_results(self.results.get(), row[1], row[0])
-        self.result.set(result)
-        self.menu_window.hide()
+        pass
+        # row = self.result_store[path]
+        # result = find_results(self.results.get(), row[1], row[0])
+        # self.result.set(result)
+        # self.menu_window.hide()
 
-    def adjust_canvas_image(self):
-        image = self.image.get()
-        if not np.any(image):
+
+    def adjust_image(self):
+        # print('adjust_image')
+        image = self.detail.get().original_image
+        if not image:
             return
         win_w, win_h = self.main_window.get_size()
-        img_h, img_w, _ = image.shape
+        img_w, img_h = image.size
         if win_w/win_h > img_w/img_h:
-            new_w = img_w * win_h / img_h
+            new_w = math.floor(img_w * win_h / img_h)
             new_h = win_h
         else:
             new_w = win_w
-            new_h = img_h * win_w / img_w
-        image = cv2.resize(image, None, fx=new_w/img_w, fy=new_h/img_h, interpolation=cv2.INTER_CUBIC)
-        pb = cv2pixbuf(image)
-        self.canvas_image.set_from_pixbuf(pb)
+            new_h = math.floor(img_h * win_w / img_w)
+        # image = cv2.resize(image, None, fx=new_w/img_w, fy=new_h/img_h, interpolation=cv2.INTER_CUBIC)
+        # pb = cv2pixbuf(image)
+        pb = pil2pixbuf(image.resize((new_w, new_h)))
+        self.original_image.set_from_pixbuf(pb)
+
 
     def refresh_image(self):
+        return
         if not self.result.get():
             return
         row = self.overlay_select_store[self.overlay_select_combo.get_active()]
@@ -339,55 +297,7 @@ class App:
 
 
     def refresh_result_tree(self):
-        if not self.menu_window.get_visible():
-            return True
-        active_filter = self.result_filter_combo.get_active()
-        if active_filter > 0:
-            target_mode = self.result_filter_store[active_filter][1]
-        else:
-            target_mode = None
-
-        scroll_value = self.result_container.get_vadjustment().get_value()
-        selected_rows = self.result_tree.get_selection().get_selected_rows()[1]
-        self.result_store.clear()
-        for r in reversed(self.results.get()):
-            if target_mode:
-                if r.mode != target_mode:
-                    continue
-            self.result_store.append([r.name, r.mode, r.original.name])
-        if len(selected_rows) > 0:
-            self.result_tree.set_cursor(selected_rows[0].get_indices()[0])
-        self.result_container.get_vadjustment().set_value(scroll_value)
-
-        self.redraw_widget(self.menu_window)
-        return True # repeat
-
-    async def ws_proc_inner(self, *args):
-        await self.ws.connect()
-        while self.loop.is_running():
-            if not self.ws.is_active():
-                print('Try re-connect')
-                self.connection.set(Connection.DISCONNECTED)
-                self.results.set([])
-                await asyncio.sleep(RECONNECT_INTERVAL)
-                await self.ws.connect()
-                continue
-            data = await self.ws.acquire_status()
-            rr = convert_to_results(data['results'])
-            self.results.set(rr)
-            self.connection.set(Connection.CONNECTED)
-            self.refresh_result_tree()
-            await asyncio.sleep(SERVER_POLLING_INTERVAL)
-        print('ws_proc terminated')
-
-    async def ws_proc(self):
-        try:
-            return await self.ws_proc_inner()
-        except Exception as e:
-            print('Error in ws_proc: ', e)
-
+        pass
 
     def start(self):
-        GLib.timeout_add(RESULT_TREE_UPDATE_INTERVAL, self.refresh_result_tree)
-        self.task = self.loop.create_task(self.ws_proc())
-        self.loop.run_forever()
+        loop.run_forever()

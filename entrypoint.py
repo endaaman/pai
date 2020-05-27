@@ -1,7 +1,2 @@
-def server():
-    from pai.server import start
-    start()
-
-def client():
-    from pai.client import start
-    start()
+from pai.client import start as client
+from pai.server import start as server

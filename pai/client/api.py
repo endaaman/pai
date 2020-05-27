@@ -1,19 +1,22 @@
 import io
 from urllib.parse import urljoin
+from datetime import datetime
 
 from PIL import Image
 import numpy as np
 import aiohttp
 import asyncio
-import io
 
-from .config import API_HOST, CHUNK_SIZE
+from .config import API_HOST
+from .models import Result
+
+CHUNK_SIZE = 1024
 
 
 async def download_image(path):
+    u = urljoin(API_HOST, path)
+    print(f'Get {u}')
     async with aiohttp.ClientSession() as session:
-        u = urljoin(API_HOST, path)
-        print(u)
         async with session.get(u) as response:
             if response.status != 200:
                 return None
@@ -25,21 +28,23 @@ async def download_image(path):
                 stream.write(chunk)
 
             img = Image.open(io.BytesIO(stream.getvalue()))
-            img.save('hoge.png')
-            exit()
             return img
-            # return cv2.imdecode(stream.getvalue(), cv2.IMREAD_COLOR)
 
 
-async def upload_image(mode, image):
-    is_success, raw = cv2.imencode('.jpg', image)
-    if not is_success:
-        print('ERROR')
-        return None
-    buffer = io.BytesIO(raw)
+async def upload_image(image):
+    buffer = io.BytesIO()
+    image.save(buffer, format='JPEG')
+
     data = aiohttp.FormData()
-    data.add_field('mode', mode)
+    data.add_field('name', datetime.now().strftime("%Y%m%d_%H%M%S"))
     data.add_field('image', buffer.getvalue(), filename='image.jpg', content_type='image/jpeg')
+
+    u = urljoin(API_HOST, '/analyze')
+    print(f'Post {u}')
     async with aiohttp.ClientSession() as session:
-        async with session.post(urljoin(API_HOST, 'api/analyze'), data=data) as response:
-            return await response.json()
+        async with session.post(u, data=data) as response:
+            res = await response.json()
+
+    result = Result(**res)
+    print('Result:', result)
+    return result

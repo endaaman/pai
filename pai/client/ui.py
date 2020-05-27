@@ -3,6 +3,8 @@ import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gst', '1.0')
 from gi.repository import Gtk, Gst
+from PIL import Image
+
 
 class GstWidget(Gtk.Box):
     def __init__(self, src):
@@ -56,4 +58,4 @@ class GstWidget(Gtk.Box):
             print('ERROR')
             return
         arr = np.frombuffer(map_info.data, dtype=np.uint8).reshape(height, width, -1)
-        return arr
+        return Image.fromarray(np.uint8(arr)).convert('RGB')
