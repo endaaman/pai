@@ -3,6 +3,11 @@
 ### client
 
 ```
+$ sudo apt install libgirepository1.0-dev
+```
+
+```
+
 $ pipenv install
 
 $ pipenv run dev
