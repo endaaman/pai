@@ -6,15 +6,25 @@ import numpy as np
 import aiohttp
 import asyncio
 
+from pai.common import Result, Detail
 from .config import API_HOST
-from .models import Result
 
 CHUNK_SIZE = 1024
 IMAGE_BASE = 'results'
 
 
+async def fetch_results():
+    url = urljoin(API_HOST, '/results')
+    print(f'Get {url}')
+    async with aiohttp.ClientSession() as session:
+        response = await session.get(url)
+        data = await response.json()
+
+    return [Result(**x) for x in data]
+
+
 async def download_image(name, target):
-    u = urljoin(API_HOST, '/'.join(['results', name, target]))
+    u = urljoin(API_HOST, '/'.join(['images', name, target]))
     print(f'Get {u}')
     async with aiohttp.ClientSession() as session:
         async with session.get(u) as response:
@@ -30,6 +40,14 @@ async def download_image(name, target):
             img = Image.open(io.BytesIO(stream.getvalue()))
             return img
 
+async def load_detail(result):
+    original_image = await download_image(result.name, result.original)
+    overlay_images = []
+    for o in result.overlays:
+        i = await download_image(result.name, o)
+        overlay_images.append(i)
+    return Detail(result, original_image, overlay_images)
+
 
 async def analyze_image(image, name):
     buffer = io.BytesIO()
@@ -39,10 +57,10 @@ async def analyze_image(image, name):
     data.add_field('name', name)
     data.add_field('image', buffer.getvalue(), filename='image.png', content_type='image/jpeg')
 
-    u = urljoin(API_HOST, '/analyze')
-    print(f'Post {u}')
+    url = urljoin(API_HOST, '/analyze')
+    print(f'Post {url}')
     async with aiohttp.ClientSession() as session:
-        response = await session.post(u, data=data)
+        response = await session.post(url, data=data)
         data = await response.json()
 
     result = Result(**data)

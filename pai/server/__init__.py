@@ -1,19 +1,31 @@
 import os
+import json
 from collections import namedtuple, OrderedDict
 import subprocess
 from PIL import Image
-
 from pprint import pprint
-import tornado.ioloop
-import tornado.web
 
-from pai.common import ORIGINAL_FILENAME
+from tornado import web, ioloop, gen
+
+from pai.common import ORIGINAL_FILENAME, Result
+
 
 RESULTS_PATH = os.path.join(os.getcwd(), 'results')
 UPLOADED_PATH = os.path.join(os.getcwd(), 'uploaded')
 
-Result = namedtuple('Result', ['name', 'original', 'overlays'])
 
+def list_images():
+    dirs = os.listdir(RESULTS_PATH)
+    results = []
+    for name in dirs:
+        d = os.path.join(RESULTS_PATH, name)
+        files = os.listdir(d)
+        if not ORIGINAL_FILENAME in files:
+            print(f'skip {d} because {ORIGINAL_FILENAME} is not contained')
+            continue
+        files.remove(ORIGINAL_FILENAME)
+        results.append(Result(name, ORIGINAL_FILENAME, files))
+    return results
 
 def command_dummuy(image_path, name):
     overlay_filename = 'overlay1.png'
@@ -24,15 +36,22 @@ def command_dummuy(image_path, name):
     bases_size = Image.open(image_path).size
     overlay = Image.new('RGBA', bases_size, color=(255, 100, 50, 200))
     overlay.save(os.path.join(target_dir, overlay_filename))
-
     return [overlay_filename]
 
-class MainHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.write('pai server')
+class MainHandler(web.RequestHandler):
+    def set_default_headers(self):
+        self.set_header("Content-Type", 'application/json')
 
-class AnalyzeHandler(tornado.web.RequestHandler):
-    def post(self):
+    async def get(self):
+        loop = ioloop.IOLoop.current()
+        results = await loop.run_in_executor(None, list_images)
+        self.write(json.dumps([r._asdict() for r in results]))
+
+class AnalyzeHandler(web.RequestHandler):
+    def set_default_headers(self):
+        self.set_header("Content-Type", 'application/json')
+
+    async def post(self):
         img = self.request.files['image'][0]
         name = self.get_argument('name')
 
@@ -41,7 +60,9 @@ class AnalyzeHandler(tornado.web.RequestHandler):
             f.write(img['body'])
 
         ### TODO: imple inference
-        overlays = command_dummuy(image_path, name)
+        loop = ioloop.IOLoop.current()
+        overlays = await loop.run_in_executor(None, command_dummuy, image_path, name)
+        await gen.sleep(3)
 
         result = Result(name, ORIGINAL_FILENAME, overlays)
         print('Result: ', result)
@@ -49,10 +70,10 @@ class AnalyzeHandler(tornado.web.RequestHandler):
 
 
 def start():
-    app = tornado.web.Application([
-        (r'/', MainHandler),
+    app = web.Application([
+        (r'/results', MainHandler),
         (r'/analyze', AnalyzeHandler),
-        (r'/results/(.*)', tornado.web.StaticFileHandler, {'path': RESULTS_PATH}),
+        (r'/images/(.*)', web.StaticFileHandler, {'path': RESULTS_PATH}),
     ])
     app.listen(3000)
-    tornado.ioloop.IOLoop.current().start()
+    ioloop.IOLoop.current().start()

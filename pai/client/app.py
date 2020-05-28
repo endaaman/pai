@@ -23,11 +23,11 @@ import gbulb
 import gbulb.gtk
 
 from .utils import create_model, debounce, check_device, glib_async, applay_pil_image_to_gtk_image
-from .api import analyze_image, download_image
+from .api import analyze_image, load_detail, fetch_results
 from .ws import WS
 from .ui import GstWidget, MessageDialog
-from .models import Result, Detail
 from .config import GST_SOURCE, RESULT_TREE_UPDATE_INTERVAL, RECONNECT_INTERVAL
+from pai.common import find_results
 
 
 asyncio.set_event_loop_policy(gbulb.gtk.GtkEventLoopPolicy())
@@ -45,6 +45,7 @@ class App:
 
         self.data_detail = None
         self.data_result = None
+        self.data_results = []
         self.data_show_control = False
         self.data_overlay_index = -1
         self.data_overlay_opacity = 0.5
@@ -100,6 +101,10 @@ class App:
     def redraw_widget(self, window):
         window.queue_resize()
         self.flush_events()
+
+    def set_loading(self, flag):
+        cursor = Gdk.Cursor(Gdk.CursorType.WATCH) if flag else None
+        self.main_window.get_property('window').set_cursor(cursor)
 
     def set_mode(self, mode):
         self.mode = mode
@@ -194,19 +199,20 @@ class App:
         self.data_result = None
         snapshot = self.gst_widget.take_snapshot()
         name = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        self.set_loading(True)
+        ok = False
         try:
             result = await analyze_image(snapshot, name)
-            original_image = await download_image(result.name, result.original)
-            overlay_images = []
-            for o in result.overlays:
-                i = await download_image(result.name, o)
-                overlay_images.append(i)
-            detail = Detail(result, original_image, overlay_images)
+            detail = await load_detail(result)
+            ok = True
         except ClientConnectorError as e:
             MessageDialog.show('Server is not running')
-            return
         except Exception as e:
             MessageDialog.show(f'Server Error: {e}')
+
+        self.set_loading(False)
+        if not ok:
             return
 
         print('Result:', result)
@@ -226,7 +232,9 @@ class App:
         print('TODO: open browser')
         # self.opacity_scale.set_visible(not self.opacity_scale.get_visible())
 
-    def on_menu_menu_activate(self, *args):
+    @glib_async(loop)
+    async def on_menu_menu_activate(self, *args):
+        self.data_results = await fetch_results()
         self.menu_window.show_all()
         self.refresh_result_tree()
 
@@ -243,24 +251,48 @@ class App:
     def on_quit_menu_activate(self, *args):
         self.main_window.close()
 
-    def on_contorol_window_key_release(self, widget, event, *args):
+    def on_menu_window_key_release(self, widget, event, *args):
         if event.keyval == Gdk.KEY_Escape:
             self.menu_window.close()
             return
 
-    def on_contorol_window_delete(self, *args):
+    def on_menu_window_delete(self, *args):
         self.menu_window.hide()
         return True
 
     def on_result_filter_combo_changed(self, widget, *args):
         self.refresh_result_tree()
 
-    def on_result_tree_row_activated(self, widget, path, column):
-        pass
-        # row = self.result_store[path]
-        # result = find_results(self.results.get(), row[1], row[0])
-        # self.result.set(result)
-        # self.menu_window.hide()
+    @glib_async(loop)
+    async def on_result_tree_row_activated(self, widget, path, column):
+        row = self.result_store[path]
+        name = row[0]
+        result = find_results(self.data_results, name)
+        self.menu_window.close()
+        if not result:
+            MessageDialog.show('No result found named "{name}"')
+            return
+
+        self.set_loading(True)
+        ok = False
+        try:
+            detail = await load_detail(result)
+            ok = True
+        except ClientConnectorError as e:
+            MessageDialog.show('Server is not running')
+        except Exception as e:
+            MessageDialog.show(f'Server Error: {e}')
+
+        self.set_loading(False)
+        if not ok:
+            return
+
+        print('Result:', result)
+        print('Detail:', detail)
+        self.data_result = result
+        self.data_detail = detail
+        self.data_overlay_index = -1
+        self.set_mode(Mode.INSPECTING)
 
     def get_adjusted_pil_image(self, pil_image):
         win_w, win_h = self.main_window.get_size()
@@ -285,7 +317,7 @@ class App:
         original_image = self.data_detail.original_image
         opacity = self.data_overlay_opacity
 
-        print(f'adjust_image: index={self.data_overlay_index} {self.data_overlay_opacity}')
+        print(f'adjust_image: index={self.data_overlay_index} opacity={self.data_overlay_opacity}')
         show_overlay = self.data_overlay_index > -1
         if show_overlay:
             overlay_image = self.data_detail.overlay_images[self.data_overlay_index]
@@ -301,7 +333,20 @@ class App:
 
 
     def refresh_result_tree(self):
-        pass
+        if not self.menu_window.get_visible():
+            return True
+        scroll_value = self.result_container.get_vadjustment().get_value()
+        selected_rows = self.result_tree.get_selection().get_selected_rows()[1]
+        self.result_store.clear()
+        for r in reversed(self.data_results):
+            self.result_store.append([r.name, ', '.join(r.overlays)])
+
+        if len(selected_rows) > 0:
+            self.result_tree.set_cursor(selected_rows[0].get_indices()[0])
+        self.result_container.get_vadjustment().set_value(scroll_value)
+
+        self.redraw_widget(self.menu_window)
+        return True # repeat
 
     def start(self):
         loop.run_forever()
