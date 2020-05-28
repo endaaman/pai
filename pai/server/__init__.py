@@ -9,6 +9,8 @@ from tornado import web, ioloop, gen
 
 from pai.common import ORIGINAL_FILENAME, Result
 
+from .config import USE_DUMMY, HOST, PORT
+
 
 RESULTS_PATH = os.path.join(os.getcwd(), 'results')
 UPLOADED_PATH = os.path.join(os.getcwd(), 'uploaded')
@@ -59,10 +61,12 @@ class AnalyzeHandler(web.RequestHandler):
         with open(image_path, 'wb') as f:
             f.write(img['body'])
 
-        ### TODO: imple inference
-        loop = ioloop.IOLoop.current()
-        overlays = await loop.run_in_executor(None, command_dummuy, image_path, name)
-        await gen.sleep(3)
+        if USE_DUMMY:
+            loop = ioloop.IOLoop.current()
+            overlays = await loop.run_in_executor(None, command_dummuy, image_path, name)
+            await gen.sleep(3)
+        else:
+            raise Exception('inferece is not implemented')
 
         result = Result(name, ORIGINAL_FILENAME, overlays)
         print('Result: ', result)
@@ -75,5 +79,6 @@ def start():
         (r'/analyze', AnalyzeHandler),
         (r'/images/(.*)', web.StaticFileHandler, {'path': RESULTS_PATH}),
     ])
-    app.listen(3000)
+    app.listen(PORT, HOST)
+    print(f'Server start at {HOST}:{PORT}')
     ioloop.IOLoop.current().start()

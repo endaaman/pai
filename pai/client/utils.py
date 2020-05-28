@@ -4,6 +4,7 @@ import threading
 import asyncio
 import time
 import array
+import functools
 
 import numpy as np
 from gi.repository import GLib
@@ -28,6 +29,17 @@ def glib_async(loop):
         return inner
     return _glib_async
 
+class Withable:
+    def __init__(self, leave, enter):
+        self.enter = enter
+        self.leave = leave
+
+    def __enter__(self):
+        if self.enter:
+            self.enter()
+
+    def __exit__(self, *args):
+        self.leave()
 
 last_timout_tag = None
 def debounce(duration, func):

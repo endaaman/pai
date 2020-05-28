@@ -15,7 +15,7 @@ IMAGE_BASE = 'results'
 
 async def fetch_results():
     url = urljoin(API_HOST, '/results')
-    print(f'Get {url}')
+    print(f'Fetch results: GET {url}')
     async with aiohttp.ClientSession() as session:
         response = await session.get(url)
         data = await response.json()
@@ -26,7 +26,7 @@ async def fetch_results():
 
 async def download_image(name, target):
     u = urljoin(API_HOST, '/'.join(['images', name, target]))
-    print(f'Get {u}')
+    print(f'Download image: GET {u}')
     async with aiohttp.ClientSession() as session:
         response = await session.get(u)
         if response.status != 200:
@@ -60,7 +60,7 @@ async def analyze_image(image, name):
     data.add_field('image', buffer.getvalue(), filename='image.png', content_type='image/jpeg')
 
     url = urljoin(API_HOST, '/analyze')
-    print(f'Post {url}')
+    print(f'Analayze image: POST {url}')
     async with aiohttp.ClientSession() as session:
         response = await session.post(url, data=data)
         data = await response.json()

@@ -21,7 +21,7 @@ import aiohttp
 import gbulb
 import gbulb.gtk
 
-from .utils import create_model, debounce, check_device, glib_async, applay_pil_image_to_gtk_image
+from .utils import glib_async, applay_pil_image_to_gtk_image, Withable
 from .api import analyze_image, fetch_detail, fetch_results
 from .ws import WS
 from .ui import GstWidget, MessageDialog
@@ -42,6 +42,7 @@ class App:
     def __init__(self):
         Gst.init(None)
 
+        self.data_loading = False
         self.data_detail = None
         self.data_result = None
         self.data_results = []
@@ -102,8 +103,14 @@ class App:
         self.flush_events()
 
     def set_loading(self, flag):
+        self.data_loading = flag
         cursor = Gdk.Cursor(Gdk.CursorType.WATCH) if flag else None
         self.main_window.get_property('window').set_cursor(cursor)
+
+    def while_loading(self):
+        return Withable(
+            lambda: self.set_loading(False),
+            lambda: self.set_loading(True))
 
     def set_mode(self, mode):
         self.mode = mode
@@ -194,23 +201,22 @@ class App:
         if self.mode != Mode.SCANNING:
             MessageDialog.show('Do analyze only when scanning mode')
             return
+        if self.data_loading:
+            MessageDialog.show('Please wait for current job')
+            return
 
         self.data_result = None
         snapshot = self.gst_widget.take_snapshot()
         name = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        self.set_loading(True)
-        ok = False
-        try:
-            result = await analyze_image(snapshot, name)
-            detail = await fetch_detail(result)
-            ok = True
-        except Exception as e:
-            MessageDialog.show(f'Server Error: {e}')
-
-        self.set_loading(False)
-        if not ok:
-            return
+        with self.while_loading():
+            try:
+                result = await analyze_image(snapshot, name)
+                detail = await fetch_detail(result)
+                ok = True
+            except Exception as e:
+                MessageDialog.show(f'Server Error: {e}')
+                return
 
         print('Result:', result)
         print('Detail:', detail)
@@ -231,11 +237,16 @@ class App:
 
     @glib_async(loop)
     async def on_menu_menu_activate(self, *args):
-        try:
-            results = await fetch_results()
-        except Exception as e:
-            MessageDialog.show('Server error: ' + str(e))
+        if self.data_loading:
+            MessageDialog.show('Please wait for current job')
             return
+
+        with self.while_loading():
+            try:
+                results = await fetch_results()
+            except Exception as e:
+                MessageDialog.show('Server error: ' + str(e))
+                return
 
         self.data_results = results
         self.menu_window.show_all()
@@ -268,6 +279,10 @@ class App:
 
     @glib_async(loop)
     async def on_result_tree_row_activated(self, widget, path, column):
+        if self.data_loading:
+            MessageDialog.show('Please wait for current job')
+            return
+
         row = self.result_store[path]
         name = row[0]
         result = find_results(self.data_results, name)
@@ -276,17 +291,12 @@ class App:
             MessageDialog.show('No result found named "{name}"')
             return
 
-        self.set_loading(True)
-        ok = False
-        try:
-            detail = await fetch_detail(result)
-            ok = True
-        except Exception as e:
-            MessageDialog.show(f'Server Error: {e}')
-
-        self.set_loading(False)
-        if not ok:
-            return
+        with self.while_loading():
+            try:
+                detail = await fetch_detail(result)
+            except Exception as e:
+                MessageDialog.show(f'Server Error: {e}')
+                return
 
         print('Result:', result)
         print('Detail:', detail)
@@ -339,7 +349,7 @@ class App:
         scroll_value = self.result_container.get_vadjustment().get_value()
         selected_rows = self.result_tree.get_selection().get_selected_rows()[1]
         self.result_store.clear()
-        for r in reversed(self.data_results):
+        for r in self.data_results:
             self.result_store.append([r.name, ', '.join(r.overlays)])
 
         if len(selected_rows) > 0:
