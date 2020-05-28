@@ -1,6 +1,8 @@
 generated/
 uploaded/
 Pipfile.lock
+.venv/
+pai.egg-info/
 
 # Created by .ignore support plugin (hsz.mobi)
 ### Node template
