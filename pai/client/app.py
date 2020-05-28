@@ -7,7 +7,6 @@ from enum import Enum, auto
 import math
 from collections import namedtuple, OrderedDict
 import asyncio
-from aiohttp.client_exceptions import ClientConnectorError
 from urllib.parse import urljoin
 from pprint import pprint
 from datetime import datetime
@@ -23,7 +22,7 @@ import gbulb
 import gbulb.gtk
 
 from .utils import create_model, debounce, check_device, glib_async, applay_pil_image_to_gtk_image
-from .api import analyze_image, load_detail, fetch_results
+from .api import analyze_image, fetch_detail, fetch_results
 from .ws import WS
 from .ui import GstWidget, MessageDialog
 from .config import GST_SOURCE, RESULT_TREE_UPDATE_INTERVAL, RECONNECT_INTERVAL
@@ -204,10 +203,8 @@ class App:
         ok = False
         try:
             result = await analyze_image(snapshot, name)
-            detail = await load_detail(result)
+            detail = await fetch_detail(result)
             ok = True
-        except ClientConnectorError as e:
-            MessageDialog.show('Server is not running')
         except Exception as e:
             MessageDialog.show(f'Server Error: {e}')
 
@@ -234,7 +231,13 @@ class App:
 
     @glib_async(loop)
     async def on_menu_menu_activate(self, *args):
-        self.data_results = await fetch_results()
+        try:
+            results = await fetch_results()
+        except Exception as e:
+            MessageDialog.show('Server error: ' + str(e))
+            return
+
+        self.data_results = results
         self.menu_window.show_all()
         self.refresh_result_tree()
 
@@ -276,10 +279,8 @@ class App:
         self.set_loading(True)
         ok = False
         try:
-            detail = await load_detail(result)
+            detail = await fetch_detail(result)
             ok = True
-        except ClientConnectorError as e:
-            MessageDialog.show('Server is not running')
         except Exception as e:
             MessageDialog.show(f'Server Error: {e}')
 
