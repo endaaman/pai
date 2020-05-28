@@ -11,10 +11,11 @@ from .config import API_HOST
 from .models import Result
 
 CHUNK_SIZE = 1024
+IMAGE_BASE = 'results'
 
 
-async def download_image(path):
-    u = urljoin(API_HOST, path)
+async def download_image(name, target):
+    u = urljoin(API_HOST, '/'.join(['results', name, target]))
     print(f'Get {u}')
     async with aiohttp.ClientSession() as session:
         async with session.get(u) as response:
@@ -31,20 +32,20 @@ async def download_image(path):
             return img
 
 
-async def upload_image(image):
+async def analyze_image(image, name):
     buffer = io.BytesIO()
     image.save(buffer, format='JPEG')
 
     data = aiohttp.FormData()
-    data.add_field('name', datetime.now().strftime("%Y%m%d_%H%M%S"))
+    data.add_field('name', name)
     data.add_field('image', buffer.getvalue(), filename='image.jpg', content_type='image/jpeg')
 
     u = urljoin(API_HOST, '/analyze')
     print(f'Post {u}')
     async with aiohttp.ClientSession() as session:
-        async with session.post(u, data=data) as response:
-            res = await response.json()
+        response = await session.post(u, data=data)
+        data = await response.json()
 
-    result = Result(**res)
+    result = Result(**data)
     print('Result:', result)
     return result

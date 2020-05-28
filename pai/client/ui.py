@@ -6,6 +6,27 @@ from gi.repository import Gtk, Gst
 from PIL import Image
 
 
+class MessageDialog(Gtk.Dialog):
+    def __init__(self, message, title, parent=None):
+        Gtk.Dialog.__init__(self, title, parent, 0, (
+            # Gtk.STOCK_CANCEL,
+            # Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OK,
+            Gtk.ResponseType.OK,
+        ))
+        self.set_default_size(150, 100)
+        label = Gtk.Label(message)
+        box = self.get_content_area()
+        box.add(label)
+        self.show_all()
+
+    @classmethod
+    def show(cls, message, title='Message'):
+        d = MessageDialog(message, title)
+        d.run()
+        d.destroy()
+
+
 class GstWidget(Gtk.Box):
     def __init__(self, src):
         super().__init__()

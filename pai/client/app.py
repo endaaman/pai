@@ -3,10 +3,11 @@ import io
 import json
 import time
 import threading
-import enum
+from enum import Enum, auto
 import math
 from collections import namedtuple, OrderedDict
 import asyncio
+from aiohttp.client_exceptions import ClientConnectorError
 from urllib.parse import urljoin
 from pprint import pprint
 
@@ -16,13 +17,14 @@ import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gst', '1.0')
 from gi.repository import Gtk, Gdk, GLib, GdkPixbuf, Gst
+import aiohttp
 import gbulb
 import gbulb.gtk
 
 from .utils import create_model, debounce, check_device, async_glib, pil2pixbuf
-from .api import upload_image, download_image
+from .api import analyze_image, download_image
 from .ws import WS
-from .ui import GstWidget
+from .ui import GstWidget, MessageDialog
 from .models import Result, Detail
 from .config import GST_SOURCE, RESULT_TREE_UPDATE_INTERVAL, RECONNECT_INTERVAL
 
@@ -31,24 +33,18 @@ asyncio.set_event_loop_policy(gbulb.gtk.GtkEventLoopPolicy())
 loop = asyncio.get_event_loop()
 
 
-def get_grid_row_count(grid):
-    count = 0
-    for child in grid.get_children():
-        top = grid.child_get_property(child, 'top-attach')
-        height = grid.child_get_property(child, 'width')
-        count = max(count, top + height)
-    return count
+class Mode(Enum):
+    SCANNING = auto()
+    INSPECTING = auto()
 
 
 class App:
     def __init__(self):
         Gst.init(None)
 
-        Model = create_model(self.update_view, loop)
-
-        self.detail = Model('detail', None)
-        self.result = Model('result', None)
-        self.show_control = Model('show_control', False)
+        self.data_detail = None
+        self.data_result = None
+        self.data_show_control = False
 
         builder = Gtk.Builder()
         builder.add_from_file(os.path.dirname(__file__) + '/app.glade')
@@ -92,7 +88,7 @@ class App:
         # self.main_window.maximize()
 
         self.main_window.show_all()
-        self.update_view(True)
+        self.set_mode(Mode.SCANNING)
 
     def flush_events(self):
         while Gtk.events_pending():
@@ -102,58 +98,48 @@ class App:
         window.queue_resize()
         self.flush_events()
 
-    def update_view(self, force=False):
-        print('update_view')
-        result = self.result.get()
-        detail = self.detail.get()
-        show_control = self.show_control.get()
+    def set_mode(self, mode):
+        self.mode = mode
+        is_scanning = mode == Mode.SCANNING
+        is_inspecting = mode == Mode.INSPECTING
 
-        if force or self.result.changed:
-            print('update_view: result')
-            if result:
-                title = f'Inspecting: {result.name}'
-            else:
-                title = 'Scanning'
-            self.main_window.set_title(title)
-            self.analyze_menu.set_visible(not result)
-            self.back_to_scan_menu.set_visible(result)
-            self.opacity_scale.set_visible(result)
-            self.overlay_select_combo.set_visible(result)
-            self.gst_widget.set_visible(not result)
-            self.original_image.set_visible(result)
+        result = self.data_result
+        detail = self.data_detail
+        show_control = self.data_show_control
+        if is_inspecting:
+            title = f'Mode: inspecting - {result.name}'
+        else:
+            title = 'Mode: scanning'
 
-            if result:
-                for row in self.overlay_select_store:
-                    if row[1] == -1:
-                        continue
-                    self.overlay_select_store.remove(row.iter)
-                for i, o in enumerate(result.overlays):
-                    self.overlay_select_store.append([o.name, i])
+        self.main_window.set_title(title)
+        self.analyze_menu.set_visible(is_scanning)
 
-            if not result:
-                self.detail.set(None)
-            else:
-                self.download_detail()
-                # ↓↓↓danger↓↓↓
-                # self.show_control.set(True)
+        self.back_to_scan_menu.set_visible(is_inspecting)
+        self.opacity_scale.set_visible(is_inspecting)
+        self.overlay_select_combo.set_visible(is_inspecting)
+        self.gst_widget.set_visible(not is_inspecting)
+        self.original_image.set_visible(is_inspecting)
+        self.control_box.set_visible(is_inspecting)
 
-        if force or self.detail.changed:
-            print('update_view: detail')
-            if detail:
-                self.adjust_image()
-            else:
-                self.original_image.clear()
+        if is_inspecting:
+            self.adjust_image()
 
-        if force or self.show_control.changed:
-            print('update_view: show_control')
-            self.control_box.set_visible(show_control and self.result.get())
+            for row in self.overlay_select_store:
+                if row[1] == -1:
+                    continue
+                self.overlay_select_store.remove(row.iter)
+            for i, o in enumerate(result.overlays):
+                self.overlay_select_store.append([o.name, i])
+
+        else:
+            self.original_image.clear()
 
         self.redraw_widget(self.main_window)
 
     @async_glib(loop)
     async def download_detail(self):
         print('download_detail')
-        result = self.result.get()
+        result = self.data_result
         original_image = await download_image('/'.join(['generated', result.name, result.original]))
         overlay_images = []
         for o in result.overlays:
@@ -163,7 +149,7 @@ class App:
         self.detail.set(Detail(result, original_image, overlay_images))
 
     def on_main_window_size_allocate(self, *args):
-        if self.result.get():
+        if self.data_result:
             self.adjust_image()
 
     def on_main_window_delete(self, *args):
@@ -180,7 +166,8 @@ class App:
         ###* GUARD END
 
         if event.button == 1:
-            self.show_control.set(not self.show_control.get())
+            if self.mode == Mode.INSPECTING:
+                self.control_box.set_visible(self.control_box.get_visible())
             self.redraw_widget(self.main_window)
             return
 
@@ -198,31 +185,49 @@ class App:
             self.fullscreen_toggler_menu.set_active(flag)
 
     def on_opacity_scale_changed(self, widget, *args):
-        # def cb():
-        #     self.opacity_scale.queue_draw()
-        #     self.flush_events()
-        #     self.refresh_image()
-        #     self.redraw(self.main_window)
         print('scale:', self.opacity_scale.get_value())
         # needed to redraw scale slider
         self.redraw_widget(self.main_window)
-
 
     def on_overlay_select_combo_changed(self, widget, *args):
         self.refresh_image()
 
     @async_glib(loop)
     async def on_analyze_menu_activate(self, *args):
+        if self.mode != Mode.SCANNING:
+            MessageDialog.show('Do analyze only when scanning mode')
+            return
+
+        self.data_result = None
         snapshot = self.gst_widget.take_snapshot()
-        result = await upload_image(snapshot)
-        self.result.set(result)
+        name = datetime.now().strftime("%Y%m%d_%H%M%S")
+        try:
+            result = await analyze_image(snapshot, name)
+            original_image = await download_image(result.name, result.original)
+            overlay_images = []
+            for o in result.overlays:
+                i = await download_image(result.name, o)
+                overlay_images.append(i)
+            detail = Detail(result, original_image, overlay_images)
+        except ClientConnectorError as e:
+            MessageDialog.show('Server is not running')
+            return
+        except Exception as e:
+            MessageDialog.show(f'Server Error: {e}')
+            return
+
+        self.data_result = result
+        self.data_detail = detail
+        self.set_mode(Mode.INSPECTING)
+
+    def on_back_to_scan_menu_activate(self, *args):
+        self.data_result = None
+        self.data_detail = None
+        self.set_mode(Mode.SCANNING)
 
     def on_browser_menu_activate(self, *args):
         print('TODO: open browser')
         # self.opacity_scale.set_visible(not self.opacity_scale.get_visible())
-
-    def on_back_to_scan_menu_activate(self, *args):
-        self.result.set(None)
 
     def on_menu_menu_activate(self, *args):
         self.menu_window.show_all()
@@ -262,8 +267,10 @@ class App:
 
 
     def adjust_image(self):
+        '''Set original_image to background_image and adjust size to window.
+        '''
         # print('adjust_image')
-        image = self.detail.get().original_image
+        image = self.data_detail.original_image
         if not image:
             return
         win_w, win_h = self.main_window.get_size()
@@ -278,22 +285,6 @@ class App:
         # pb = cv2pixbuf(image)
         pb = pil2pixbuf(image.resize((new_w, new_h)))
         self.original_image.set_from_pixbuf(pb)
-
-
-    def refresh_image(self):
-        return
-        if not self.result.get():
-            return
-        row = self.overlay_select_store[self.overlay_select_combo.get_active()]
-        selected_overlay_index = row[1]
-        detail = self.detail.get()
-        if selected_overlay_index == -1:
-            self.image.set(detail.original_image)
-            return
-        overlay = detail.overlay_images[selected_overlay_index]
-        opacity = self.opacity_adjustment.get_value() / 100
-        blended = overlay_transparent(detail.original_image, overlay, alpha=opacity)
-        self.image.set(blended)
 
 
     def refresh_result_tree(self):

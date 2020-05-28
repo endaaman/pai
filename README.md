@@ -7,6 +7,10 @@ $ sudo apt install libgirepository1.0-dev
 ```
 
 ```
+$ sudo pacman -S gst-plugin-gtk
+```
+
+```
 
 $ pipenv install
 
