@@ -1,10 +1,13 @@
 import os
 from collections import namedtuple, OrderedDict
 import subprocess
+from PIL import Image
 
 from pprint import pprint
 import tornado.ioloop
 import tornado.web
+
+from pai.common import ORIGINAL_FILENAME
 
 RESULTS_PATH = os.path.join(os.getcwd(), 'results')
 UPLOADED_PATH = os.path.join(os.getcwd(), 'uploaded')
@@ -16,7 +19,7 @@ def command_dummuy(image_path, name):
     overlay_filename = 'overlay1.png'
     target_dir = os.path.join(RESULTS_PATH, name)
     os.makedirs(target_dir, exist_ok=True)
-    sp = subprocess.Popen(f'cp {image_path} {target_dir}/org.jpg', shell=True)
+    sp = subprocess.Popen(f'cp {image_path} {target_dir}/{ORIGINAL_FILENAME}', shell=True)
     sp.wait()
     bases_size = Image.open(image_path).size
     overlay = Image.new('RGBA', bases_size, color=(255, 100, 50, 200))
@@ -26,21 +29,21 @@ def command_dummuy(image_path, name):
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
-        self.write("Hello, world")
+        self.write('pai server')
 
 class AnalyzeHandler(tornado.web.RequestHandler):
     def post(self):
         img = self.request.files['image'][0]
         name = self.get_argument('name')
 
-        image_path = os.path.join(UPLOADED_PATH, f'{name}.jpg')
+        image_path = os.path.join(UPLOADED_PATH, f'{name}.png')
         with open(image_path, 'wb') as f:
             f.write(img['body'])
 
         ### TODO: imple inference
-        overlays = command_dummuy()
+        overlays = command_dummuy(image_path, name)
 
-        result = Result(name, 'org.jpg', overlays)
+        result = Result(name, ORIGINAL_FILENAME, overlays)
         print('Result: ', result)
         self.write(result._asdict())
 

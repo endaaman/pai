@@ -1,6 +1,5 @@
 import io
 from urllib.parse import urljoin
-from datetime import datetime
 
 from PIL import Image
 import numpy as np
@@ -34,11 +33,11 @@ async def download_image(name, target):
 
 async def analyze_image(image, name):
     buffer = io.BytesIO()
-    image.save(buffer, format='JPEG')
+    image.save(buffer, format='PNG')
 
     data = aiohttp.FormData()
     data.add_field('name', name)
-    data.add_field('image', buffer.getvalue(), filename='image.jpg', content_type='image/jpeg')
+    data.add_field('image', buffer.getvalue(), filename='image.png', content_type='image/jpeg')
 
     u = urljoin(API_HOST, '/analyze')
     print(f'Post {u}')
@@ -47,5 +46,4 @@ async def analyze_image(image, name):
         data = await response.json()
 
     result = Result(**data)
-    print('Result:', result)
     return result

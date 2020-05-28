@@ -75,8 +75,8 @@
       </object>
     </child>
     <child>
-      <object class="GtkMenuItem">
-        <property name="visible">True</property>
+      <object class="GtkMenuItem" id="browser_menu">
+        <property name="visible">False</property>
         <property name="label" translatable="yes">Open webpage</property>
         <signal name="activate" handler="on_browser_menu_activate" swapped="no"/>
       </object>
@@ -119,11 +119,7 @@
           <!-- GstWidget -->
         </child>
         <child type="overlay">
-          <object class="GtkImage" id="overlay_image">
-            <property name="visible">False</property>
-            <property name="can_focus">False</property>
-          </object>
-          <object class="GtkImage" id="original_image">
+          <object class="GtkImage" id="canvas_image">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
           </object>

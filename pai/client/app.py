@@ -10,9 +10,10 @@ import asyncio
 from aiohttp.client_exceptions import ClientConnectorError
 from urllib.parse import urljoin
 from pprint import pprint
+from datetime import datetime
 
 import numpy as np
-
+from PIL import Image
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gst', '1.0')
@@ -21,7 +22,7 @@ import aiohttp
 import gbulb
 import gbulb.gtk
 
-from .utils import create_model, debounce, check_device, async_glib, pil2pixbuf
+from .utils import create_model, debounce, check_device, glib_async, applay_pil_image_to_gtk_image
 from .api import analyze_image, download_image
 from .ws import WS
 from .ui import GstWidget, MessageDialog
@@ -45,6 +46,8 @@ class App:
         self.data_detail = None
         self.data_result = None
         self.data_show_control = False
+        self.data_overlay_index = -1
+        self.data_overlay_opacity = 0.5
 
         builder = Gtk.Builder()
         builder.add_from_file(os.path.dirname(__file__) + '/app.glade')
@@ -59,7 +62,7 @@ class App:
         self.overlay_select_store = builder.get_object('overlay_select_store')
 
         self.gst_widget = GstWidget(GST_SOURCE)
-        self.original_image = builder.get_object('original_image')
+        self.canvas_image = builder.get_object('canvas_image')
 
         self.menu_window = builder.get_object('menu_window')
         self.notebook = builder.get_object('notebook')
@@ -102,7 +105,6 @@ class App:
         self.mode = mode
         is_scanning = mode == Mode.SCANNING
         is_inspecting = mode == Mode.INSPECTING
-
         result = self.data_result
         detail = self.data_detail
         show_control = self.data_show_control
@@ -118,35 +120,21 @@ class App:
         self.opacity_scale.set_visible(is_inspecting)
         self.overlay_select_combo.set_visible(is_inspecting)
         self.gst_widget.set_visible(not is_inspecting)
-        self.original_image.set_visible(is_inspecting)
+        self.canvas_image.set_visible(is_inspecting)
         self.control_box.set_visible(is_inspecting)
 
         if is_inspecting:
-            self.adjust_image()
-
             for row in self.overlay_select_store:
                 if row[1] == -1:
                     continue
                 self.overlay_select_store.remove(row.iter)
             for i, o in enumerate(result.overlays):
-                self.overlay_select_store.append([o.name, i])
-
+                self.overlay_select_store.append([o, i])
+            self.adjust_image()
         else:
-            self.original_image.clear()
+            self.canvas_image.clear()
 
         self.redraw_widget(self.main_window)
-
-    @async_glib(loop)
-    async def download_detail(self):
-        print('download_detail')
-        result = self.data_result
-        original_image = await download_image('/'.join(['generated', result.name, result.original]))
-        overlay_images = []
-        for o in result.overlays:
-            i = await download_image('/'.join(['generated', result.name, o]))
-            overlay_images.append(i)
-
-        self.detail.set(Detail(result, original_image, overlay_images))
 
     def on_main_window_size_allocate(self, *args):
         if self.data_result:
@@ -167,7 +155,7 @@ class App:
 
         if event.button == 1:
             if self.mode == Mode.INSPECTING:
-                self.control_box.set_visible(self.control_box.get_visible())
+                self.control_box.set_visible(not self.control_box.get_visible())
             self.redraw_widget(self.main_window)
             return
 
@@ -187,12 +175,17 @@ class App:
     def on_opacity_scale_changed(self, widget, *args):
         print('scale:', self.opacity_scale.get_value())
         # needed to redraw scale slider
+
+        self.data_overlay_opacity = self.opacity_scale.get_value() / 100
+        self.adjust_image()
         self.redraw_widget(self.main_window)
 
     def on_overlay_select_combo_changed(self, widget, *args):
-        self.refresh_image()
+        row = self.overlay_select_store[self.overlay_select_combo.get_active()]
+        self.data_overlay_index = row[1]
+        self.adjust_image()
 
-    @async_glib(loop)
+    @glib_async(loop)
     async def on_analyze_menu_activate(self, *args):
         if self.mode != Mode.SCANNING:
             MessageDialog.show('Do analyze only when scanning mode')
@@ -216,13 +209,17 @@ class App:
             MessageDialog.show(f'Server Error: {e}')
             return
 
+        print('Result:', result)
+        print('Detail:', detail)
         self.data_result = result
         self.data_detail = detail
+        self.data_overlay_index = -1
         self.set_mode(Mode.INSPECTING)
 
     def on_back_to_scan_menu_activate(self, *args):
         self.data_result = None
         self.data_detail = None
+        self.data_overlay_index = -1
         self.set_mode(Mode.SCANNING)
 
     def on_browser_menu_activate(self, *args):
@@ -265,16 +262,9 @@ class App:
         # self.result.set(result)
         # self.menu_window.hide()
 
-
-    def adjust_image(self):
-        '''Set original_image to background_image and adjust size to window.
-        '''
-        # print('adjust_image')
-        image = self.data_detail.original_image
-        if not image:
-            return
+    def get_adjusted_pil_image(self, pil_image):
         win_w, win_h = self.main_window.get_size()
-        img_w, img_h = image.size
+        img_w, img_h = pil_image.size
         if win_w/win_h > img_w/img_h:
             new_w = math.floor(img_w * win_h / img_h)
             new_h = win_h
@@ -283,8 +273,31 @@ class App:
             new_h = math.floor(img_h * win_w / img_w)
         # image = cv2.resize(image, None, fx=new_w/img_w, fy=new_h/img_h, interpolation=cv2.INTER_CUBIC)
         # pb = cv2pixbuf(image)
-        pb = pil2pixbuf(image.resize((new_w, new_h)))
-        self.original_image.set_from_pixbuf(pb)
+        return pil_image.resize((new_w, new_h))
+
+    def adjust_image(self):
+        '''Set image to canvas_image and adjust size to window.
+        '''
+        if not self.data_detail:
+            print('Tried to adjust image when detail == None')
+            return
+
+        original_image = self.data_detail.original_image
+        opacity = self.data_overlay_opacity
+
+        print(f'adjust_image: index={self.data_overlay_index} {self.data_overlay_opacity}')
+        show_overlay = self.data_overlay_index > -1
+        if show_overlay:
+            overlay_image = self.data_detail.overlay_images[self.data_overlay_index]
+            # blended_image = original_image.copy()
+            # mask = Image.new('L', original_image.size, math.floor(255 * opacity))
+            # blended_image.paste(overlay_image, (0, 0), mask)
+            blended_image = Image.blend(original_image.convert('RGBA'), overlay_image, alpha=opacity)
+        else:
+            blended_image = original_image
+
+        adjusted_image = self.get_adjusted_pil_image(blended_image)
+        applay_pil_image_to_gtk_image(self.canvas_image, adjusted_image)
 
 
     def refresh_result_tree(self):

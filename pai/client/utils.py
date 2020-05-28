@@ -21,12 +21,12 @@ def check_device(p):
         return False
     return True
 
-def async_glib(loop):
-    def _async_glib(F):
+def glib_async(loop):
+    def _glib_async(F):
         def inner(*args):
             return loop.create_task(F(*args))
         return inner
-    return _async_glib
+    return _glib_async
 
 
 last_timout_tag = None
@@ -50,14 +50,14 @@ def cv2pixbuf(self, img, color_converting=True):
         image.shape[2] * image.shape[1])
 
 def pil2pixbuf(img):
+    img = img.convert('RGB')
     arr = array.array('B', img.tobytes())
     width, height = img.size
-    bands = img.getbands()
-    if 'A' in bands:
-        mode = GdkPixbuf.Colorspace.RGBA
-    else:
-        mode = GdkPixbuf.Colorspace.RGB
-    return GdkPixbuf.Pixbuf.new_from_data(arr, mode, False, 8, width, height, len(bands) * img.width)
+    return GdkPixbuf.Pixbuf.new_from_data(arr, GdkPixbuf.Colorspace.RGB, False, 8, width, height, 3 * img.width)
+
+def applay_pil_image_to_gtk_image(gtk_image, pil_image):
+    pb = pil2pixbuf(pil_image)
+    gtk_image.set_from_pixbuf(pb)
 
 
 class Fps:
