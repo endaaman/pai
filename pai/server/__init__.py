@@ -9,28 +9,35 @@ from tornado import web, ioloop, gen
 
 from pai.common import ORIGINAL_FILENAME, Result
 
-from .config import USE_DUMMY, HOST, PORT
+from .config import USE_DUMMY, HOST, PORT, SCRIPT_PATH
 
 
 RESULTS_PATH = os.path.join(os.getcwd(), 'results')
 UPLOADED_PATH = os.path.join(os.getcwd(), 'uploaded')
 
+def get_result(name):
+    d = os.path.join(RESULTS_PATH, name)
+    filenames = os.listdir(d)
+    if not ORIGINAL_FILENAME in filenames:
+        return None
+    filenames.remove(ORIGINAL_FILENAME)
+    overlays = sorted([filename for filename in filenames if 'overlay' in filename])
+    return Result(name, ORIGINAL_FILENAME, overlays)
 
-def list_images():
+
+def get_results():
     dirs = os.listdir(RESULTS_PATH)
     results = []
-    for name in dirs:
-        d = os.path.join(RESULTS_PATH, name)
-        files = os.listdir(d)
-        if not ORIGINAL_FILENAME in files:
+    for name in reversed(sorted(dirs)):
+        result = get_result(name)
+        if not result:
             print(f'skip {d} because {ORIGINAL_FILENAME} is not contained')
             continue
-        files.remove(ORIGINAL_FILENAME)
-        results.append(Result(name, ORIGINAL_FILENAME, files))
+        results.append(result)
     return results
 
 def command_dummuy(image_path, name):
-    overlay_filename = 'overlay1.png'
+    overlay_filename = 'overlay.png'
     target_dir = os.path.join(RESULTS_PATH, name)
     os.makedirs(target_dir, exist_ok=True)
     sp = subprocess.Popen(f'cp {image_path} {target_dir}/{ORIGINAL_FILENAME}', shell=True)
@@ -38,7 +45,14 @@ def command_dummuy(image_path, name):
     bases_size = Image.open(image_path).size
     overlay = Image.new('RGBA', bases_size, color=(255, 100, 50, 200))
     overlay.save(os.path.join(target_dir, overlay_filename))
-    return [overlay_filename]
+    return get_result(name)
+
+def command_inference(image_path, name):
+    cmd = f'bash {SCRIPT_PATH} {image_path} {name}'
+    print(f'Running: "{cmd}"')
+    sp = subprocess.Popen(cmd, shell=True)
+    sp.wait()
+    return get_result(name)
 
 class MainHandler(web.RequestHandler):
     def set_default_headers(self):
@@ -46,7 +60,7 @@ class MainHandler(web.RequestHandler):
 
     async def get(self):
         loop = ioloop.IOLoop.current()
-        results = await loop.run_in_executor(None, list_images)
+        results = await loop.run_in_executor(None, get_results)
         self.write(json.dumps([r._asdict() for r in results]))
 
 class AnalyzeHandler(web.RequestHandler):
@@ -63,12 +77,12 @@ class AnalyzeHandler(web.RequestHandler):
 
         if USE_DUMMY:
             loop = ioloop.IOLoop.current()
-            overlays = await loop.run_in_executor(None, command_dummuy, image_path, name)
+            result = await loop.run_in_executor(None, command_dummuy, image_path, name)
             await gen.sleep(3)
         else:
-            raise Exception('inferece is not implemented')
+            loop = ioloop.IOLoop.current()
+            result = await loop.run_in_executor(None, command_inference, image_path, name)
 
-        result = Result(name, ORIGINAL_FILENAME, overlays)
         print('Result: ', result)
         self.write(result._asdict())
 
