@@ -5,6 +5,7 @@ import asyncio
 import time
 import array
 import functools
+from PIL import Image
 
 import numpy as np
 from gi.repository import GLib
@@ -127,6 +128,19 @@ def create_model(handler, loop):
             return self.value
 
     return _Model
+
+
+def image_overlay(back, fore, alpha):
+    back = np.asarray(back)
+    fore = np.asarray(fore)
+    if fore.shape[2] > 3:
+        mask = fore[:,:,[3]] * alpha / 255
+    else:
+        mask = alpha
+    a = back[:,:,0:3] * (- mask + 1)
+    b = fore[:,:,0:3] * mask
+    out = (a + b).astype(np.uint8)
+    return Image.fromarray(out)
 
 def overlay_transparent(background, overlay, alpha=1.0, x=0, y=0):
     background = np.copy(background)

@@ -69,6 +69,14 @@
       </object>
     </child>
     <child>
+      <object class="GtkCheckMenuItem" id="show_control_toggler_menu">
+        <property name="visible">True</property>
+        <property name="active">True</property>
+        <property name="label" translatable="yes">Toggle control</property>
+        <signal name="toggled" handler="on_show_control_toggler_menu_toggled" swapped="no"/>
+      </object>
+    </child>
+    <child>
       <object class="GtkSeparatorMenuItem">
         <property name="visible">True</property>
       </object>

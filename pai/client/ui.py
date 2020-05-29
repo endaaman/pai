@@ -79,4 +79,6 @@ class GstWidget(Gtk.Box):
             print('ERROR')
             return
         arr = np.frombuffer(map_info.data, dtype=np.uint8).reshape(height, width, -1)
-        return Image.fromarray(np.uint8(arr)).convert('RGB')
+        img = Image.fromarray(np.uint8(arr))
+        b, g, r, _ = img.split()
+        return Image.merge('RGB', (r, g, b))
