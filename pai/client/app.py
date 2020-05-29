@@ -21,7 +21,7 @@ import aiohttp
 import gbulb
 import gbulb.gtk
 
-from .utils import glib_async, applay_pil_image_to_gtk_image, Withable, image_overlay
+from .utils import debounce, glib_async, applay_pil_image_to_gtk_image, Withable, image_overlay
 from .api import analyze_image, fetch_detail, fetch_results
 from .ws import WS
 from .ui import GstWidget, MessageDialog
@@ -203,12 +203,15 @@ class App:
             # if self.mode == Mode.SCANNING:
             #     self.redraw_widget(self.gst_widget)
 
-    def on_opacity_scale_changed(self, widget, *args):
+    def opacity_changed(self):
         print('scale:', self.opacity_scale.get_value())
         self.data_overlay_opacity = self.opacity_scale.get_value() / 100
         self.adjust_canvas_image()
         # # needed to redraw scale slider
         # self.redraw_widget(self.main_window)
+
+    def on_opacity_scale_changed(self, widget, *args):
+        debounce(100, self.opacity_changed)
 
     def on_overlay_select_combo_changed(self, widget, *args):
         active = self.overlay_select_combo.get_active()

@@ -42,13 +42,16 @@ class Withable:
     def __exit__(self, *args):
         self.leave()
 
-last_timout_tag = None
+timeout_tags = {}
 def debounce(duration, func):
-    global last_timout_tag
-    if last_timout_tag:
-        GLib.source_remove(last_timout_tag)
-        last_timout_tag = None
-    last_timout_tag = GLib.timeout_add(duration, func)
+    def inner():
+        timeout_tags[func] = None
+        func()
+    tag = timeout_tags.get(func)
+    if tag:
+        GLib.source_remove(tag)
+        timeout_tags[func] = None
+    timeout_tags[func] = GLib.timeout_add(duration, inner)
 
 def cv2pixbuf(self, img, color_converting=True):
     if color_converting:
