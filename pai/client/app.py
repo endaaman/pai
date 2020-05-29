@@ -173,15 +173,16 @@ class App:
                 self.data_show_overlay = not self.data_show_overlay
                 self.adjust_canvas_image()
                 # self.control_box.set_visible(not self.control_box.get_visible())
-
-            self.redraw_widget(self.main_window)
-            return
+                self.redraw_widget(self.main_window)
+            else:
+                self.redraw_widget(self.gst_widget)
 
         if event.button == 3:
             self.menu.popup(None, None, None, None, event.button, event.time)
             return
 
-    def on_main_window_state_event(self, widget, event):
+    @glib_async(loop)
+    async def on_main_window_state_event(self, widget, event):
         if bool(event.changed_mask & Gdk.WindowState.MAXIMIZED):
             flag = bool(event.new_window_state & Gdk.WindowState.MAXIMIZED)
             if flag:
@@ -189,7 +190,10 @@ class App:
             else:
                 self.main_window.unfullscreen()
             self.fullscreen_toggler_menu.set_active(flag)
-            self.redraw_widget(self.main_window)
+
+            if self.mode == Mode.SCANNING:
+                await asyncio.sleep(1)
+                self.redraw_widget(self.gst_widget)
 
     def on_opacity_scale_changed(self, widget, *args):
         print('scale:', self.opacity_scale.get_value())
