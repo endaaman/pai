@@ -29,6 +29,8 @@ from .config import GST_SOURCE, RESULT_TREE_UPDATE_INTERVAL, RECONNECT_INTERVAL
 from pai.common import find_results
 
 
+FRAME_UPDATE_INTERVAL = 100
+
 asyncio.set_event_loop_policy(gbulb.gtk.GtkEventLoopPolicy())
 loop = asyncio.get_event_loop()
 
@@ -95,6 +97,7 @@ class App:
         # self.main_window.maximize()
 
         self.main_window.show_all()
+        self.current_window_size = self.main_window.get_size()
         self.set_mode(Mode.SCANNING)
 
     def flush_events(self):
@@ -127,14 +130,20 @@ class App:
 
         self.main_window.set_title(title)
         self.analyze_menu.set_visible(is_scanning)
+        if is_scanning:
+            self.gst_widget.start()
+        else:
+            self.gst_widget.stop()
         self.gst_widget.set_visible(is_scanning)
 
         self.back_to_scan_menu.set_visible(is_inspecting)
         self.show_control_toggler_menu.set_visible(is_inspecting)
-        self.opacity_scale.set_visible(is_inspecting)
-        self.overlay_select_combo.set_visible(is_inspecting)
         self.canvas_image.set_visible(is_inspecting)
-        self.control_box.set_visible(is_inspecting)
+
+        if is_inspecting:
+            self.control_box.show_all()
+        else:
+            self.control_box.hide()
 
         if is_inspecting:
             for row in self.overlay_select_store:
@@ -146,14 +155,15 @@ class App:
         else:
             self.canvas_image.clear()
 
-        self.redraw_widget(self.main_window)
+        # self.redraw_widget(self.main_window)
 
     def on_main_window_size_allocate(self, *args):
-        if self.data_result:
-            self.adjust_canvas_image()
+        pass
+        # if self.data_result:
+        #     self.adjust_canvas_image()
 
-        if self.mode == Mode.SCANNING:
-            self.redraw_widget(self.main_window)
+        # if self.mode == Mode.SCANNING:
+        #     self.redraw_widget(self.main_window)
 
     def on_main_window_delete(self, *args):
         # Gtk.main_quit(*args)
@@ -181,8 +191,7 @@ class App:
             self.menu.popup(None, None, None, None, event.button, event.time)
             return
 
-    @glib_async(loop)
-    async def on_main_window_state_event(self, widget, event):
+    def on_main_window_state_event(self, widget, event):
         if bool(event.changed_mask & Gdk.WindowState.MAXIMIZED):
             flag = bool(event.new_window_state & Gdk.WindowState.MAXIMIZED)
             if flag:
@@ -191,17 +200,15 @@ class App:
                 self.main_window.unfullscreen()
             self.fullscreen_toggler_menu.set_active(flag)
 
-            if self.mode == Mode.SCANNING:
-                await asyncio.sleep(1)
-                self.redraw_widget(self.gst_widget)
+            # if self.mode == Mode.SCANNING:
+            #     self.redraw_widget(self.gst_widget)
 
     def on_opacity_scale_changed(self, widget, *args):
         print('scale:', self.opacity_scale.get_value())
-        # needed to redraw scale slider
-
         self.data_overlay_opacity = self.opacity_scale.get_value() / 100
         self.adjust_canvas_image()
-        self.redraw_widget(self.main_window)
+        # # needed to redraw scale slider
+        # self.redraw_widget(self.main_window)
 
     def on_overlay_select_combo_changed(self, widget, *args):
         active = self.overlay_select_combo.get_active()
@@ -275,7 +282,10 @@ class App:
             self.main_window.unmaximize()
 
     def on_show_control_toggler_menu_toggled(self, widget, *args):
-        self.control_box.set_visible(widget.get_active())
+        if widget.get_active():
+            self.control_box.show_all()
+        else:
+            self.control_box.hide()
 
     def on_main_window_key_release(self, widget, event, *args):
         if event.keyval == Gdk.KEY_Escape:
@@ -361,7 +371,6 @@ class App:
         adjusted_image = self.get_adjusted_pil_image(blended_image)
         applay_pil_image_to_gtk_image(self.canvas_image, adjusted_image)
 
-
     def refresh_result_tree(self):
         if not self.menu_window.get_visible():
             return True
@@ -376,7 +385,16 @@ class App:
         self.result_container.get_vadjustment().set_value(scroll_value)
 
         self.redraw_widget(self.menu_window)
-        return True # repeat
+
+    def on_frame_update(self):
+        size = self.main_window.get_size()
+        if size != self.current_window_size:
+            if self.mode == Mode.INSPECTING:
+                self.adjust_canvas_image()
+
+        self.current_window_size = size
+        return True
 
     def start(self):
+        GLib.timeout_add(FRAME_UPDATE_INTERVAL, self.on_frame_update)
         loop.run_forever()

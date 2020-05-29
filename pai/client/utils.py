@@ -72,7 +72,6 @@ def applay_pil_image_to_gtk_image(gtk_image, pil_image):
     pb = pil2pixbuf(pil_image)
     gtk_image.set_from_pixbuf(pb)
 
-
 class Fps:
     def __init__(self):
         self.count = 0
@@ -134,11 +133,11 @@ def image_overlay(back, fore, alpha):
     back = np.asarray(back)
     fore = np.asarray(fore)
     if fore.shape[2] > 3:
-        mask = fore[:,:,[3]] * alpha / 255
+        mask = fore[:, :, [3]] * alpha / 255
     else:
         mask = alpha
-    a = back[:,:,0:3] * (- mask + 1)
-    b = fore[:,:,0:3] * mask
+    a = back[:, :, 0:3] * (- mask + 1)
+    b = fore[:, :, 0:3] * mask
     out = (a + b).astype(np.uint8)
     return Image.fromarray(out)
 
@@ -166,7 +165,7 @@ def overlay_transparent(background, overlay, alpha=1.0, x=0, y=0):
                 overlay,
                 np.ones((overlay.shape[0], overlay.shape[1], 1), dtype = overlay.dtype) * 255
             ],
-            axis = 2,
+            axis=2,
         )
     overlay_image = overlay[..., :3]
     mask = (overlay[..., 3:] / 255.0) * alpha
