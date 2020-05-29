@@ -200,8 +200,11 @@ class App:
         self.redraw_widget(self.main_window)
 
     def on_overlay_select_combo_changed(self, widget, *args):
-        row = self.overlay_select_store[self.overlay_select_combo.get_active()]
-        self.data_overlay_index = row[1]
+        active = self.overlay_select_combo.get_active()
+        # print('active: ', active)
+        # row = self.overlay_select_store[active]
+        self.data_overlay_index = active
+        self.data_show_overlay = True
         self.adjust_canvas_image()
 
     @glib_async(loop)

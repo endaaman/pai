@@ -21,7 +21,7 @@
   </object>
   <object class="GtkAdjustment" id="opacity_adjustment">
     <property name="upper">100</property>
-    <property name="value">50</property>
+    <property name="value">80</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
