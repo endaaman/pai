@@ -35,6 +35,9 @@ asyncio.set_event_loop_policy(gbulb.gtk.GtkEventLoopPolicy())
 loop = asyncio.get_event_loop()
 
 
+async def run_async(func, *args):
+    await loop.run_in_executor(None, func, *args)
+
 class Mode(Enum):
     SCANNING = auto()
     INSPECTING = auto()
@@ -203,15 +206,13 @@ class App:
             # if self.mode == Mode.SCANNING:
             #     self.redraw_widget(self.gst_widget)
 
-    def opacity_changed(self):
+    def _on_opacity_scale_changed(self):
         print('scale:', self.opacity_scale.get_value())
         self.data_overlay_opacity = self.opacity_scale.get_value() / 100
         self.adjust_canvas_image()
-        # # needed to redraw scale slider
-        # self.redraw_widget(self.main_window)
 
     def on_opacity_scale_changed(self, widget, *args):
-        debounce(100, self.opacity_changed)
+        debounce(100, self._on_opacity_scale_changed)
 
     def on_overlay_select_combo_changed(self, widget, *args):
         active = self.overlay_select_combo.get_active()
@@ -234,7 +235,7 @@ class App:
         name = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         with self.while_loading():
-            snapshot = self.gst_widget.take_snapshot()
+            snapshot = await run_async(self.gst_widget.take_snapshot)
             try:
                 result = await analyze_image(snapshot, name)
                 detail = await fetch_detail(result)

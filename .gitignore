@@ -3,6 +3,7 @@ uploaded/
 Pipfile.lock
 .venv/
 pai.egg-info/
+poster/
 
 # Created by .ignore support plugin (hsz.mobi)
 ### Node template
