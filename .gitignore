@@ -3,8 +3,20 @@ uploaded/
 Pipfile.lock
 .venv/
 pai.egg-info/
-!poster/poster.tex
-poster/
+poster/*.aux
+poster/*.dvi
+poster/*.fdb_latexmk
+poster/*.fls
+poster/*.log
+poster/*.nav
+poster/*.out
+poster/*.pdf
+poster/*.snm
+poster/*.bbl
+poster/*.blg
+poster/*.synctex.gz
+poster/*.toc
+
 
 # Created by .ignore support plugin (hsz.mobi)
 ### Node template

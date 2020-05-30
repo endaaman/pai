@@ -13,3 +13,10 @@ $ poetry run client
 $ poetry install
 $ poetry run client
 ```
+
+## Poster
+
+```
+$ cd poster
+$ latexmk poster.tex
+```

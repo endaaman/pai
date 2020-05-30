@@ -1,15 +1,97 @@
 \documentclass[final,dvipdfmx]{beamer}
-\mode<presentation> {
-  \usetheme{Berlin}
-}
+% \usetheme{metropolis}
+% \usetheme{Rochester}
+\usetheme{Berlin}
 
+\usepackage{bxdpx-beamer}% dvipdfmxなので必要
+\usepackage{pxjahyper}
+\renewcommand{\kanjifamilydefault}{\gtdefault}
 \usepackage[orientation=portrait,size=a0,scale=1.4,debug]{beamerposter}
 \usepackage[japanese]{babel}
+\setbeamercolor{bibliography item}{fg=black}
+\setbeamercolor{bibliography entry}{fg=black}
+\setbeamercolor{bibliography title}{fg=black}
+\setbeamercolor*{bibliography entry title}{parent=palette primary}
+% \setbeamercolor{bibliography entry title}{parent=palette primary}
+
+% \special{pdf:mapline rml H KosugiMaru-Regular.ttf}
+% \special{pdf:mapline rmlv V KosugiMaru-Regular.ttf}
+% \special{pdf:mapline gbm H KosugiMaru-Regular.ttf}
+% \special{pdf:mapline gbmv H KosugiMaru-Regular.ttf}
+% \hyphenpenalty=10000\relax
+% \exhyphenpenalty=10000\relax
+% \sloppy
+
 
 \begin{document}
-  \begin{frame}
-    \begin{block}{block title}
-      ああああああ
+
+\begin{columns}[T]
+  \begin{minipage}[]{0.75\columnwidth}
+    \vspace{5mm}
+    \huge 前立腺癌のGleason pattern評価のためのSemantic segmentationモデルと、Raspberry Piを利用した統合された診断システムの提案 \\[5mm]
+    \large 遠田 建\cite{student} \hspace{5mm} 伊勢 昂生\cite{student} \hspace{5mm} 石田雄介\cite{teacher} \hspace{5mm} 田中 伸哉\cite{teacher}
+    {\small
+      \begin{thebibliography}{99}
+        \beamertemplatetextbibitems
+        \setlength{\itemsep}{-.5zw}
+        \begin{minipage}[]{0.30\columnwidth}
+          \bibitem{student} 北海道大学医学部医学科6年次
+        \end{minipage}
+        \begin{minipage}[]{0.40\columnwidth}
+          \bibitem{teacher} 北海道大学大学院医学研究院腫瘍病理学教室
+        \end{minipage}
+      \end{thebibliography}
+    }
+    % \bibliographystyle{junsrt}
+
+  \end{minipage}
+
+  \begin{minipage}[]{0.08\columnwidth}
+    \begin{figure}\centering
+      \includegraphics[width=\columnwidth]{logo_patho2.png}
+    \end{figure}
+  \end{minipage}
+
+  \begin{minipage}[]{0.08\columnwidth}
+    \begin{figure}\centering
+      \includegraphics[width=\columnwidth]{logo_humed.png}
+    \end{figure}
+  \end{minipage}
+
+  \begin{minipage}[]{0.08\columnwidth}
+    \begin{figure}\centering
+      \includegraphics[width=\columnwidth]{logo_hu.png}
+    \end{figure}
+  \end{minipage}
+\end{columns}
+
+\vspace{10mm}
+
+\begin{columns}[T]
+  \begin{column}{0.49\columnwidth}
+    \begin{block}{\Large Introduction}
+      \begin{figure}
+        \begin{flushleft}
+          \input{1_intro.tex}
+        \end{flushleft}
+      \end{figure}
     \end{block}
-  \end{frame}
+
+    \begin{block}{\Large Material and method}
+      \begin{figure}
+        \begin{flushleft}
+          \input{2_material.tex}
+        \end{flushleft}
+      \end{figure}
+    \end{block}
+
+  \end{column}
+
+  \begin{column}{0.49\columnwidth}
+    \begin{block}{}
+    \end{block}
+  \end{column}
+
+\end{columns}
+
 \end{document}
