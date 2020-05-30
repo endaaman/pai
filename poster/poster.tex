@@ -5,14 +5,26 @@
 
 \usepackage{bxdpx-beamer}% dvipdfmxなので必要
 \usepackage{pxjahyper}
-\renewcommand{\kanjifamilydefault}{\gtdefault}
 \usepackage[orientation=portrait,size=a0,scale=1.4,debug]{beamerposter}
 \usepackage[japanese]{babel}
+
+\usepackage[font=small]{caption}
+\usepackage[font=footnotesize]{subcaption}
+
+\addto\captionsjapanese{\renewcommand{\figurename}{Fig}}
+\addto\captionsjapanese{\renewcommand{\tablename}{Table}}
+\setbeamertemplate{caption}[numbered]
+
+
+\renewcommand{\kanjifamilydefault}{\gtdefault}
+
+
 \setbeamercolor{bibliography item}{fg=black}
-\setbeamercolor{bibliography entry}{fg=black}
-\setbeamercolor{bibliography title}{fg=black}
-\setbeamercolor*{bibliography entry title}{parent=palette primary}
-% \setbeamercolor{bibliography entry title}{parent=palette primary}
+\setbeamercolor{bibliography entry author}{fg=black}
+% \setbeamercolor{bibliography entry author}{fg=red}
+% \setbeamercolor{bibliography entry title}{fg=blue}
+% \setbeamercolor{bibliography entry location}{fg=green}
+% \setbeamercolor{bibliography entry note}{fg=cyan}
 
 % \special{pdf:mapline rml H KosugiMaru-Regular.ttf}
 % \special{pdf:mapline rmlv V KosugiMaru-Regular.ttf}
@@ -22,8 +34,12 @@
 % \exhyphenpenalty=10000\relax
 % \sloppy
 
+\makeatletter
+\def\@cite#1{\textsuperscript{[#1]}}
+\makeatother
 
 \begin{document}
+\nocite{*}
 
 \begin{columns}[T]
   \begin{minipage}[]{0.75\columnwidth}
@@ -34,7 +50,7 @@
       \begin{thebibliography}{99}
         \beamertemplatetextbibitems
         \setlength{\itemsep}{-.5zw}
-        \begin{minipage}[]{0.30\columnwidth}
+        \begin{minipage}[]{0.25\columnwidth}
           \bibitem{student} 北海道大学医学部医学科6年次
         \end{minipage}
         \begin{minipage}[]{0.40\columnwidth}
@@ -42,7 +58,6 @@
         \end{minipage}
       \end{thebibliography}
     }
-    % \bibliographystyle{junsrt}
 
   \end{minipage}
 
@@ -70,26 +85,38 @@
 \begin{columns}[T]
   \begin{column}{0.49\columnwidth}
     \begin{block}{\Large Introduction}
-      \begin{figure}
-        \begin{flushleft}
-          \input{1_intro.tex}
-        \end{flushleft}
-      \end{figure}
+      \begin{flushleft}
+        \input{1_intro.tex}
+      \end{flushleft}
     \end{block}
 
     \begin{block}{\Large Material and method}
-      \begin{figure}
-        \begin{flushleft}
-          \input{2_material.tex}
-        \end{flushleft}
-      \end{figure}
+      \begin{flushleft}
+        \input{2_material.tex}
+      \end{flushleft}
     \end{block}
 
   \end{column}
 
   \begin{column}{0.49\columnwidth}
-    \begin{block}{}
+
+    \begin{block}{\Large Result}
+      \begin{flushleft}
+        \input{3_result.tex}
+      \end{flushleft}
     \end{block}
+
+    \begin{block}{\Large References}
+      \begin{figure}
+        \begin{flushleft}
+          \beamertemplatetextbibitems
+          \bibliographystyle{junsrt}
+          \bibliography{refs}
+        \end{flushleft}
+      \end{figure}
+    \end{block}
+
+
   \end{column}
 
 \end{columns}
