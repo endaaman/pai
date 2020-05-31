@@ -65,12 +65,13 @@
   \label{fig:dl_sample}
 \end{figure}
 
-　作成したU-NetモデルのIoUはJaccard index(\ref{eq:iou})によって算出し、訓練画像に対して0.765、学習に含めなかったテスト画像に対して0.737であった。
+　作成したU-NetモデルのJaccard index(\ref{eq:iou})によって算出したIoU（Intersection over union）は、訓練画像に対して0.765、学習に含めなかったテスト画像に対して0.737であった。
 
-\begin{equation}
-\label{eq:iou}
-  Jaccard\,index = \frac{|PR \cap GT|}{|PR \cup GT|}
-\end{equation}
+\begin{align}
+  \label{eq:iou}
+  Jaccard\,index = & \; \frac{|PR \cap GT|}{|PR \cup GT|} \\[5mm]
+  PR: \mbox{予測領域(Prediction)} & \;\; GT: \mbox{正解ラベル(Ground truth)} \nonumber
+\end{align}
 
 \vspace{0.5zh}
 
@@ -84,6 +85,4 @@
   \label{fig:arch}
 \end{figure}
 
-\vspace{1zh}
-
-　
+　クライアントアプリケーションはUSBカメラの映像をGstreamerを用いてリアルタイムで表示する。ユーザーの操作により任意のタイミングの映像のスナップショット画像をサーバーに送信し、結果を確認することができる。

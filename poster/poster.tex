@@ -1,23 +1,26 @@
 \documentclass[final,dvipdfmx]{beamer}
+\title{A proposal for semantic segmentation model for evaluating Gleason patterns of prostate cancer and integrated diagnostic system using Raspberry Pi}
+\author{Ken Enda}
+\institute{Department of Cancer Pathology Faculty of Medicine, HOKKAIDO UNIVERSITY }
+
 % \usetheme{Rochester}
 \usetheme{Berlin}
 
-\usepackage{bxdpx-beamer}% dvipdfmxなので必要
+\usepackage{bxdpx-beamer}
 \usepackage{pxjahyper}
 \usepackage[orientation=portrait,size=a0,scale=1.4,debug]{beamerposter}
 \usepackage[japanese]{babel}
-
 \usepackage[font=small]{caption}
 \usepackage[font=footnotesize]{subcaption}
+\setbeamertemplate{navigation symbols}{}
 
+% caption
 \addto\captionsjapanese{\renewcommand{\figurename}{Fig}}
 \addto\captionsjapanese{\renewcommand{\tablename}{Table}}
 \setbeamertemplate{caption}[numbered]
 
-
+% bin
 \renewcommand{\kanjifamilydefault}{\gtdefault}
-
-
 \setbeamercolor{bibliography item}{fg=black}
 \setbeamercolor{bibliography entry author}{fg=black}
 % \setbeamercolor{bibliography entry author}{fg=red}
@@ -25,14 +28,7 @@
 % \setbeamercolor{bibliography entry location}{fg=green}
 % \setbeamercolor{bibliography entry note}{fg=cyan}
 
-% \special{pdf:mapline rml H KosugiMaru-Regular.ttf}
-% \special{pdf:mapline rmlv V KosugiMaru-Regular.ttf}
-% \special{pdf:mapline gbm H KosugiMaru-Regular.ttf}
-% \special{pdf:mapline gbmv H KosugiMaru-Regular.ttf}
-% \hyphenpenalty=10000\relax
-% \exhyphenpenalty=10000\relax
-% \sloppy
-
+% fig
 \makeatletter
 \def\@cite#1{\textsuperscript{[#1]}}
 \makeatother
@@ -102,7 +98,7 @@
 
     \begin{block}{\Large Result}
       \begin{flushleft}
-        \input{3_result.tex}
+      mate  \input{3_result.tex}
       \end{flushleft}
     \end{block}
 
@@ -115,7 +111,6 @@
         \end{flushleft}
       \end{figure}
     \end{block}
-
 
   \end{column}
 
