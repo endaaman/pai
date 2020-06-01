@@ -36,7 +36,7 @@ loop = asyncio.get_event_loop()
 
 
 async def run_async(func, *args):
-    await loop.run_in_executor(None, func, *args)
+    return await loop.run_in_executor(None, func, *args)
 
 class Mode(Enum):
     SCANNING = auto()
