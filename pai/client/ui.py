@@ -36,6 +36,7 @@ class GstWidget(Gtk.Box):
         self.pipeline = Gst.Pipeline()
         factory = self.pipeline.get_factory()
         self.gtksink = factory.make('gtksink')
+        self.gtksink.set_property('sync', False)
 
         self.pipeline.add(self.gtksink)
         self.pipeline.add(self.video_bin)

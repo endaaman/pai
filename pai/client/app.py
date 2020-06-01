@@ -195,6 +195,7 @@ class App:
             return
 
     def on_main_window_state_event(self, widget, event):
+        return
         if bool(event.changed_mask & Gdk.WindowState.MAXIMIZED):
             flag = bool(event.new_window_state & Gdk.WindowState.MAXIMIZED)
             if flag:
@@ -281,9 +282,11 @@ class App:
 
     def on_fullscreen_toggler_menu_toggled(self, widget, *args):
         if widget.get_active():
-            self.main_window.maximize()
+            # self.main_window.maximize()
+            self.main_window.fullscreen()
         else:
-            self.main_window.unmaximize()
+            # self.main_window.unmaximize()
+            self.main_window.unfullscreen()
 
     def on_show_control_toggler_menu_toggled(self, widget, *args):
         if widget.get_active():
