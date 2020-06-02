@@ -70,6 +70,7 @@ class App:
         self.overlay_select_store = builder.get_object('overlay_select_store')
 
         self.gst_widget = GstWidget(GST_SOURCE)
+        self.gst_widget.bus.connect('message', self.on_gst_message)
         self.canvas_image = builder.get_object('canvas_image')
 
         self.menu_window = builder.get_object('menu_window')
@@ -102,6 +103,18 @@ class App:
         self.main_window.show_all()
         self.current_window_size = self.main_window.get_size()
         self.set_mode(Mode.SCANNING)
+
+    def on_gst_message(self, bus, message):
+        if message.type == Gst.MessageType.EOS:
+            self.gst_widget.pipeline.set_state(Gst.State.NULL)
+            MessageDialog.show('EOS')
+            return
+        if message.type == Gst.MessageType.ERROR:
+            err, debug = message.parse_error()
+            self.gst_widget.pipeline.set_state(Gst.State.NULL)
+            MessageDialog.show(f'Gst error: {err}\n {debug}')
+            self.main_window.close()
+            return
 
     def flush_events(self):
         while Gtk.events_pending():

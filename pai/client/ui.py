@@ -32,7 +32,6 @@ class GstWidget(Gtk.Box):
         super().__init__()
         self.connect('realize', self._on_realize)
         self.video_bin = Gst.parse_bin_from_description(src, True)
-
         self.pipeline = Gst.Pipeline()
         factory = self.pipeline.get_factory()
         self.gtksink = factory.make('gtksink')
@@ -41,9 +40,8 @@ class GstWidget(Gtk.Box):
         self.pipeline.add(self.gtksink)
         self.pipeline.add(self.video_bin)
         self.video_bin.link(self.gtksink)
-        bus = self.pipeline.get_bus()
-        bus.add_signal_watch()
-        bus.connect('message', self.on_message)
+        self.bus = self.pipeline.get_bus()
+        self.bus.add_signal_watch()
 
     def _on_realize(self, widget):
         w = self.gtksink.get_property('widget')
@@ -58,16 +56,6 @@ class GstWidget(Gtk.Box):
     def stop(self):
         self.pipeline.set_state(Gst.State.PAUSED)
 
-    def on_message(self, bus, message):
-        if message.type == Gst.MessageType.EOS:
-            self.pipeline.set_state(Gst.State.NULL)
-            print('EOS')
-            return
-        if message.type == Gst.MessageType.ERROR:
-            err, debug = message.parse_error()
-            print('Error: %s' % err, debug)
-            self.pipeline.set_state(Gst.State.NULL)
-            return
 
     def take_snapshot(self):
         sample = self.gtksink.get_property('last-sample')
