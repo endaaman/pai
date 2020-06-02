@@ -5,6 +5,8 @@ gi.require_version('Gst', '1.0')
 from gi.repository import Gtk, Gst
 from PIL import Image
 
+from .config import SYNC
+
 
 class MessageDialog(Gtk.Dialog):
     def __init__(self, message, title, parent=None):
@@ -35,7 +37,7 @@ class GstWidget(Gtk.Box):
         self.pipeline = Gst.Pipeline()
         factory = self.pipeline.get_factory()
         self.gtksink = factory.make('gtksink')
-        self.gtksink.set_property('sync', False)
+        self.gtksink.set_property('sync', SYNC)
 
         self.pipeline.add(self.gtksink)
         self.pipeline.add(self.video_bin)
