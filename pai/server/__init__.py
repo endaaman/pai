@@ -9,14 +9,10 @@ from tornado import web, ioloop, gen
 
 from pai.common import ORIGINAL_FILENAME, Result
 
-from .config import USE_DUMMY, HOST, PORT, SCRIPT_PATH
-
-
-RESULTS_PATH = os.path.join(os.getcwd(), 'results')
-UPLOADED_PATH = os.path.join(os.getcwd(), 'uploaded')
+from .config import USE_DUMMY, HOST, PORT, SCRIPT_PATH, RESULTS_DIR, UPLOADED_DIR
 
 def get_result(name):
-    d = os.path.join(RESULTS_PATH, name)
+    d = os.path.join(RESULTS_DIR, name)
     filenames = os.listdir(d)
     if not ORIGINAL_FILENAME in filenames:
         return None
@@ -26,7 +22,7 @@ def get_result(name):
 
 
 def get_results():
-    dirs = os.listdir(RESULTS_PATH)
+    dirs = os.listdir(RESULTS_DIR)
     results = []
     for name in reversed(sorted(dirs)):
         result = get_result(name)
@@ -38,7 +34,7 @@ def get_results():
 
 def command_dummuy(image_path, name):
     overlay_filename = 'overlay.png'
-    target_dir = os.path.join(RESULTS_PATH, name)
+    target_dir = os.path.join(RESULTS_DIR, name)
     os.makedirs(target_dir, exist_ok=True)
     sp = subprocess.Popen(f'cp {image_path} {target_dir}/{ORIGINAL_FILENAME}', shell=True)
     sp.wait()
@@ -71,7 +67,7 @@ class AnalyzeHandler(web.RequestHandler):
         img = self.request.files['image'][0]
         name = self.get_argument('name')
 
-        image_path = os.path.join(UPLOADED_PATH, f'{name}.png')
+        image_path = os.path.join(UPLOADED_DIR, f'{name}.png')
         with open(image_path, 'wb') as f:
             f.write(img['body'])
 
@@ -91,7 +87,7 @@ def start():
     app = web.Application([
         (r'/results', MainHandler),
         (r'/analyze', AnalyzeHandler),
-        (r'/images/(.*)', web.StaticFileHandler, {'path': RESULTS_PATH}),
+        (r'/images/(.*)', web.StaticFileHandler, {'path': RESULTS_DIR}),
     ])
     app.listen(PORT, HOST)
     print(f'Server start at {HOST}:{PORT}')
