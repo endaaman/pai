@@ -1,13 +1,27 @@
-\documentclass[final,dvipdfmx]{beamer}
+\documentclass[
+17pt,
+  dvipdfmx,
+  xcolor={svgnames},
+  hyperref={colorlinks,citecolor=DeepPink4,linkcolor=DarkRed,urlcolor=DarkBlue}
+  ]{beamer}
 \title{A proposal for semantic segmentation model for evaluating Gleason patterns of prostate cancer and integrated diagnostic system using Raspberry Pi}
 \author{Ken Enda}
-\institute{Department of Cancer Pathology Faculty of Medicine, HOKKAIDO UNIVERSITY }
+\institute{Department of Cancer Pathology Faculty of Medicine, HOKKAIDO UNIVERSITY}
 
-% \usetheme{Rochester}
 \usetheme{Berlin}
 
-\usepackage{bxdpx-beamer}
-\usepackage{pxjahyper}
+\usepackage[utf8]{inputenc}
+% \usepackage{bxdpx-beamer}
+% \usepackage{pxjahyper}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{media9}
+% \usepackage{movie15}
+\usepackage{hyperref}
+% \usepackage{parskip}
+
+\newcommand\Fontvi{\fontsize{6}{7.2}\selectfont}
+
 \usepackage[orientation=portrait,size=a0,scale=1.4,debug]{beamerposter}
 \usepackage[japanese]{babel}
 \usepackage[font=small]{caption}
@@ -39,19 +53,15 @@
 \begin{columns}[T]
   \begin{minipage}[]{0.75\columnwidth}
     \vspace{5mm}
-    \huge 前立腺癌のGleason pattern評価のためのSemantic segmentationモデルと、Raspberry Piを利用した統合された診断システムの提案
+    \huge A proposal for semantic segmentation model for evaluating Gleason patterns of prostate cancer and integrated diagnostic system using Raspberry Pi
     \\[5mm]
-    \large 遠田 建\cite{student} \hspace{5mm} 伊勢 昂生\cite{student} \hspace{5mm} 石田雄介\cite{teacher} \hspace{5mm} 田中 伸哉\cite{teacher}
+    \large Ken ENDA \cite{student} \hspace{5mm} Koki ISE\cite{student} \hspace{5mm} Yusuke ISHIDA\cite{teacher} \hspace{5mm} Sinnya TANAKA\cite{teacher}
     {\small
       \begin{thebibliography}{99}
         \beamertemplatetextbibitems
         \setlength{\itemsep}{-.5zw}
-        \begin{minipage}[]{0.25\columnwidth}
-          \bibitem{student} 北海道大学医学部医学科6年次
-        \end{minipage}
-        \begin{minipage}[]{0.40\columnwidth}
-          \bibitem{teacher} 北海道大学大学院医学研究院腫瘍病理学教室
-        \end{minipage}
+        \bibitem{student} Sixth year student, School of Medicine, Hokkaido University
+        \bibitem{teacher} Department of Cancer Pathology Faculty of Medicine, Hokkaido University
       \end{thebibliography}
     }
 
@@ -82,23 +92,28 @@
   \begin{column}{0.49\columnwidth}
     \begin{block}{\Large Introduction}
       \begin{flushleft}
-        \input{1_intro.tex}
+        \input{intro.tex}
       \end{flushleft}
     \end{block}
 
     \begin{block}{\Large Material and method}
       \begin{flushleft}
-        \input{2_material.tex}
+        \input{material.tex}
       \end{flushleft}
     \end{block}
-
   \end{column}
 
   \begin{column}{0.49\columnwidth}
 
+    \begin{block}{\Large Discussion}
+      \begin{flushleft}
+        \input{discussion.tex}
+      \end{flushleft}
+    \end{block}
+
     \begin{block}{\Large Result}
       \begin{flushleft}
-      mate  \input{3_result.tex}
+        \input{result.tex}
       \end{flushleft}
     \end{block}
 
