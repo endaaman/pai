@@ -1,0 +1,225 @@
+\documentclass[
+  dvipdfmx,
+  xcolor={svgnames},
+  hyperref={colorlinks,citecolor=DeepPink4,linkcolor=DarkRed,urlcolor=DarkBlue}
+  ]{beamer}
+\title{}
+\title[A proposal of semantic segmentation model for Gleason patterns and integrated diagnostic system using Raspberry Pi]{A proposal for semantic segmentation model for evaluating Gleason patterns of prostate cancer and integrated diagnostic system using Raspberry Pi}
+\author{Ken Enda}
+
+\institute{Department of Cancer Pathology Faculty of Medicine, HOKKAIDO UNIVERSITY}
+
+\date[]{June, 2020}
+
+\usetheme{metropolis}
+% \usetheme{Berlin}
+
+\usepackage[utf8]{inputenc}
+% \usepackage{bxdpx-beamer}
+% \usepackage{pxjahyper}
+\usepackage{graphicx}
+\usepackage{media9}
+\usepackage{hyperref}
+% \usepackage{movie15}
+% \usepackage{parskip}
+
+\newcommand\Fontvi{\fontsize{6}{7.2}\selectfont}
+
+% \usepackage[orientation=portrait,size=a0,scale=1.4,debug]{beamerposter}
+\usepackage[japanese]{babel}
+\usepackage[font=small]{caption}
+\usepackage[font=footnotesize]{subcaption}
+\setbeamertemplate{navigation symbols}{}
+
+% caption
+\addto\captionsjapanese{\renewcommand{\figurename}{Fig}}
+\addto\captionsjapanese{\renewcommand{\tablename}{Table}}
+\setbeamertemplate{caption}[numbered]
+
+% bib
+\renewcommand{\kanjifamilydefault}{\gtdefault}
+\setbeamercolor{bibliography item}{fg=black}
+\setbeamercolor{bibliography entry author}{fg=black}
+% \setbeamercolor{bibliography entry author}{fg=red}
+% \setbeamercolor{bibliography entry title}{fg=blue}
+% \setbeamercolor{bibliography entry location}{fg=green}
+% \setbeamercolor{bibliography entry note}{fg=cyan}
+
+\setbeamerfont{bibliography item}{size=\scriptsize}
+\setbeamerfont{bibliography entry author}{size=\scriptsize}
+\setbeamerfont{bibliography entry title}{size=\scriptsize}
+\setbeamerfont{bibliography entry location}{size=\scriptsize}
+\setbeamerfont{bibliography entry note}{size=\scriptsize}
+\addtobeamertemplate{footline}{\hypersetup{allcolors=.}}{}
+
+% fig
+\makeatletter
+\def\@cite#1{\textsuperscript{[#1]}}
+\makeatother
+
+\begin{document}
+\nocite{*}
+
+\begin{frame}{}
+  \huge A proposal for semantic segmentation model for evaluating Gleason patterns of prostate cancer and integrated diagnostic system using Raspberry Pi
+  \\[5mm]
+  \large Ken ENDA \cite{student} Koki ISE\cite{student} Yusuke ISHIDA\cite{teacher} Sinnya TANAKA\cite{teacher}
+  \begin{thebibliography}{99}
+    \beamertemplatetextbibitems
+    \setlength{\itemsep}{-.5zw}
+    \bibitem{student} Sixth year student, School of Medicine, Hokkaido University
+    \bibitem{teacher} Department of Cancer Pathology Faculty of Medicine, Hokkaido University
+  \end{thebibliography}
+\end{frame}
+
+\begin{frame}{Introduction}
+  In recent years, the development of image analysis technology using deep learning (DL) has been remarkable and research on histopathological imaging has been very successful.  On the other hand, there are few opportunities to actually use the technique and its products in clinical diagnostic practice. Because several steps must be taken to obtain inferential results from DL on histopathological images.
+\end{frame}
+
+\begin{frame}{Introduction}
+  For example, to use DL system you may need to take photograph, move the image files to an external storage, walk to physically separated room where DL system places and analyze the images by DL. Because of something hassle like them, DL are rarely used directly in clinical practice. \par
+  \vspace{0.5zh}
+  In this study, We propose a system that integrate seamlessly microscope and DL system for clinical diagnostics using Raspberry Pi.
+\end{frame}
+
+
+\begin{frame}{Material and method}
+  First, we created an U-Net\cite{unet} model for semantic segmentation based on images Gleason pattern(GP) of prostate pathological images. The labels are normal glands, GP3, GP4, and GP5. We use VGG16\cite{vgg} for the ecoder part of the U-Net model and nearest sampling for the decoder part.
+\end{frame}
+
+
+\begin{frame}{Material and method}
+  The model was trained by whole slide image of total prostatectomy specimens diagnosed in our department and those labels like Fig\ref{fig:seg_color}. An example output of the model is shown in Fig\ref{fig:dl_sample}.
+
+  \begin{figure}[htbp]\centering
+    \begin{tabular}{c}
+      \begin{subfigure}[t]{0.20\columnwidth}\centering
+        \includegraphics[width=0.7\columnwidth]{assets/gp_pin.png}
+        \subcaption{Normal gland:black}
+      \end{subfigure}
+
+      \begin{subfigure}[t]{0.15\columnwidth}\centering
+        \includegraphics[width=0.7\columnwidth]{assets/gp_3_2.png}
+        \subcaption{GP3:blue}
+      \end{subfigure}
+
+      \begin{subfigure}[t]{0.15\columnwidth}\centering
+        \includegraphics[width=0.7\columnwidth]{assets/gp_4.png}
+        \subcaption{GP4:green}
+      \end{subfigure}
+
+      \begin{subfigure}[t]{0.15\columnwidth}\centering
+        \includegraphics[width=0.7\columnwidth]{assets/gp_5_2.png}
+        \subcaption{GP5:red}
+      \end{subfigure}
+
+      \begin{subfigure}[t]{0.15\columnwidth}\centering
+        \includegraphics[width=0.7\columnwidth]{assets/gp_3_1.png}
+        \subcaption{GP3+4}
+      \end{subfigure}
+
+      \begin{subfigure}[t]{0.15\columnwidth}\centering
+        \includegraphics[width=0.7\columnwidth]{assets/gp_5_1.png}
+        \subcaption{GP4+5}
+      \end{subfigure}
+    \end{tabular}
+    \label{fig:example}
+    \caption{Example of the segmentation}
+    \label{fig:seg_color}
+  \end{figure}
+\end{frame}
+
+\begin{frame}{Material and method}
+  \begin{figure}[htbp]\centering
+    \begin{tabular}{c}
+      \begin{subfigure}[t]{0.33\columnwidth}\centering
+        \includegraphics[width=0.9\columnwidth]{assets/ex_org.png}
+        \subcaption{Input image}
+      \end{subfigure}
+
+      \begin{subfigure}[t]{0.33\columnwidth}\centering
+        \includegraphics[width=0.9\columnwidth]{assets/ex_gt.png}
+        \subcaption{Label image}
+      \end{subfigure}
+
+      \begin{subfigure}[t]{0.33\columnwidth}\centering
+        \includegraphics[width=0.9\columnwidth]{assets/ex_pr.png}
+        \subcaption{Output image}
+      \end{subfigure}
+    \end{tabular}
+    \label{fig:example}
+    \caption{Example output ofr the U-Net model}
+    \label{fig:dl_sample}
+  \end{figure}
+
+\end{frame}
+
+
+\begin{frame}{Material and method}
+  The IoU (Intersection over union) calculated by the Jaccard index of the U-Net model were 0.765 for the training datasets and 0.737 for the testing datasets.
+  \begin{align}
+    \label{eq:iou}
+    Jaccard\,index = & \; \frac{|PR \cap GT|}{|PR \cup GT|} \\[5mm]
+    PR: \mbox{Prediction} & \;\; GT: \mbox{Ground truth} \nonumber
+  \end{align}
+
+\end{frame}
+
+
+\begin{frame}{Material and method}
+  In addition, we developed the client/server applications(Fig\ref{fig:arch}). The client gets the images from the microscopic camera, sends to the server. It is installed into Raspberry Pi 4 Model B.
+
+  The server receives the images, passes them to the DL system and serves the results. It is into the computer where DL system works.
+
+  \begin{figure}\centering
+    \includegraphics[width=0.8\columnwidth]{assets/arch.png}
+    \caption{Architecture of client and server applications}
+    \label{fig:arch}
+  \end{figure}
+\end{frame}
+
+\begin{frame}{Material and method}
+  The DL system and the client/server applications were all written in Python and work on Linux-based computers. Especially the DL system uses PyTorch and the client uses GTK+/GStreamer. The source codes are all available on GitHub.\cite{gh-prostate}\cite{gh-pai}
+\end{frame}
+
+\begin{frame}{Result}
+  \begin{figure}[t]\centering
+    \includegraphics[width=\columnwidth, keepaspectratio]{assets/thumb.png}
+    \caption{The client application in action (\href{https://drive.google.com/file/d/16hUGZ2jU2Def9N5ozNaZnLvjnWc-kkNP/view}{Link to the movie})}
+    \label{fig:in_action}
+  \end{figure}
+\end{frame}
+
+\begin{frame}{Result}
+  On a computer with sufficient performance, we can get the results of DL analysis in as little as about 20 seconds after clicking the analyze button. The effort and hassle of using the DL was reduced to a minimum. \par
+  \vspace{0.5zh}
+  However it also means we have to wait for at least about 20 seconds. It takes about 10 seconds to analyze FullHD 1920×1080 image for the computer with NVIDIA GeForce GTX 1080 Ti and a few seconds to transfer the result image files.
+\end{frame}
+
+\begin{frame}{Result}
+  We were faced with the limitations of the Raspberry Pi's performance. Even just playing the video stream transfored from USB-connected microscopic camera, the FPS drops. \par
+  \vspace{0.5zh}
+  And there was also a delay to alpha composite the result image on the original one. The low performance of the hardware was detracting to the user experience of the client software.
+\end{frame}
+
+\begin{frame}{Discussion}
+  We found they were grateful for the function just to save the image of the view microscopic view without any analytics. Up until now, microscopic camera was connected to display directyl via HDMI.  With the Raspberry Pi in between the camera and the display, we can now take photograph and analyze in addition to usage so far. \par
+  \vspace{0.5zh}
+  Users experienced as if the microscope camera was augmented in functional extension of itself.
+\end{frame}
+
+\begin{frame}{Conclusion}
+  We discoverd the new side of Raspberry Pi as an extension of the microscope camera itself. Its good point is that it is inexpensive, about 7,000 yen, but the performance was not sufficient to handle images. \par
+  \vspace{0.5zh}
+  We might need a device with another higher performance on this usage.
+\end{frame}
+
+\begin{frame}{References}
+  \begin{figure}
+    \beamertemplatetextbibitems
+    \bibliographystyle{junsrt}
+    \bibliography{refs}
+  \end{figure}
+\end{frame}
+
+\end{document}
