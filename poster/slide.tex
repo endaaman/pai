@@ -61,65 +61,91 @@
 \nocite{*}
 
 \begin{frame}{}
-  \huge A proposal for semantic segmentation model for evaluating Gleason patterns of prostate cancer and integrated diagnostic system using Raspberry Pi
-  \\[5mm]
-  \large Ken ENDA \cite{student} Koki ISE\cite{student} Yusuke ISHIDA\cite{teacher} Sinnya TANAKA\cite{teacher}
+  \huge A proposal for semantic segmentation model for evaluating Gleason patterns of prostate cancer and integrated diagnostic system using Raspberry Pi\par
+  \vspace{0.5zh}
+  \normalsize Ken ENDA \cite{student} Koki ISE\cite{student} Yusuke ISHIDA\cite{dept} Sinya TANAKA\cite{dept}\cite{icredd}\cite{gicore}
   \begin{thebibliography}{99}
     \beamertemplatetextbibitems
     \setlength{\itemsep}{-.5zw}
-    \bibitem{student} Sixth year student, School of Medicine, Hokkaido University
-    \bibitem{teacher} Department of Cancer Pathology Faculty of Medicine, Hokkaido University
+    \bibitem{student} Sch. Med., Hokkaido Univ.
+    \bibitem{dept} Dept. Cancer Pathol., Fac. Med., Hokkaido Univ.
+    \bibitem{icredd} Inst. Chem. Reaction Design and Discovery (WPI-ICReDD), Hokkaido Univ.  
+    \bibitem{gicore} Global Inst. Collaborative Res. Edu. (GI-CoRE), Hokkaido Univ.
   \end{thebibliography}
 \end{frame}
 
-\begin{frame}{Introduction}
-  In recent years, the development of image analysis technology using deep learning (DL) has been remarkable and research on histopathological imaging has been very successful.  On the other hand, there are few opportunities to actually use the technique and its products in clinical diagnostic practice. Because several steps must be taken to obtain inferential results from DL on histopathological images.
+
+\begin{frame}{COI}
+    \setlength{\fboxsep}{1em}
+    \fbox{
+      \parbox{22em}{
+        \centering
+        \Huge 第109回日本病理学会総会COI開示
+        \par
+        \vspace{0.5zh}
+        \large 筆頭発表者名：遠田 建
+      }
+    }
+    \par
+    \vspace{1zh}
+  \centering 演題発表に関連し、開示すべきCOI関係にある企業などはありません。
 \end{frame}
 
 \begin{frame}{Introduction}
-  For example, to use DL system you may need to take photograph, move the image files to an external storage, walk to physically separated room where DL system places and analyze the images by DL. Because of something hassle like them, DL are rarely used directly in clinical practice. \par
+  In recent years, image analysis of histopathology field has been remarkably improved due to deep learning (DL) method using convolutional network. On the other hand, not many facilities are using DL system for its initial cost or unproven reliability. Several steps required to obtain inferential results from DL on histopathological images.
+\end{frame}
+
+\begin{frame}{Introduction}
+  Now if some pathologists going to harness DL system power for their diagnostic assistant; taking microscopic digital photo-image, choose an image appropriate for diagnosis, transfer the image files to an external or network storage, then start up DL system, read target file, overlaying the original image and DL output file for comparison, finally the pathologist get the reliable output and interpret into the final diagnosis.
+\end{frame}
+
+\begin{frame}{Introduction}
+  Due to these hassle things, DL are rarely used directly in clinical practice nowadays.
+  \par
   \vspace{0.5zh}
-  In this study, We propose a system that integrate seamlessly microscope and DL system for clinical diagnostics using Raspberry Pi.
+  In this study, we integrated the system of microscopic image capture and overlaying DL output image for clinical diagnostics, using a small and very low cost Raspberry Pi computer.
 \end{frame}
 
-
 \begin{frame}{Material and method}
-  First, we created an U-Net\cite{unet} model for semantic segmentation based on images Gleason pattern(GP) of prostate pathological images. The labels are normal glands, GP3, GP4, and GP5. We use VGG16\cite{vgg} for the ecoder part of the U-Net model and nearest sampling for the decoder part.
+  In our previous study, we have established the U-Net\cite{unet} model of semantic segmentation for detecting prostatic cancers based on Gleason pattern(GP).
+  \par
+  \vspace{0.5zh}
+  Our U-Net model consists of pretrained VGG16\cite{vgg} encoder and nearest sampling decoder\cite{ternausnet}. The training data were the histopathology images of total prostatectomy, labeled by trained pathologists of our laboratory, as normal glands, GP3, GP4, and GP5 (Fig.\ref{fig:seg_color}).
 \end{frame}
 
-
 \begin{frame}{Material and method}
-  The model was trained by whole slide image of total prostatectomy specimens diagnosed in our department and those labels like Fig\ref{fig:seg_color}. An example output of the model is shown in Fig\ref{fig:dl_sample}.
 
   \begin{figure}[htbp]\centering
     \begin{tabular}{c}
-      \begin{subfigure}[t]{0.20\columnwidth}\centering
-        \includegraphics[width=0.7\columnwidth]{assets/gp_pin.png}
-        \subcaption{Normal gland:black}
+      \begin{subfigure}[t]{0.33\columnwidth}\centering
+        \includegraphics[]{assets/gp_pin.png}
+        \subcaption{Normal glands:black}
       \end{subfigure}
 
-      \begin{subfigure}[t]{0.15\columnwidth}\centering
-        \includegraphics[width=0.7\columnwidth]{assets/gp_3_2.png}
+      \begin{subfigure}[t]{0.33\columnwidth}\centering
+        \includegraphics[]{assets/gp_3_2.png}
         \subcaption{GP3:blue}
       \end{subfigure}
 
-      \begin{subfigure}[t]{0.15\columnwidth}\centering
-        \includegraphics[width=0.7\columnwidth]{assets/gp_4.png}
+      \begin{subfigure}[t]{0.33\columnwidth}\centering
+        \includegraphics[]{assets/gp_4.png}
         \subcaption{GP4:green}
       \end{subfigure}
+    \end{tabular}
 
-      \begin{subfigure}[t]{0.15\columnwidth}\centering
-        \includegraphics[width=0.7\columnwidth]{assets/gp_5_2.png}
+    \begin{tabular}{c}
+      \begin{subfigure}[t]{0.33\columnwidth}\centering
+        \includegraphics[]{assets/gp_5_2.png}
         \subcaption{GP5:red}
       \end{subfigure}
 
-      \begin{subfigure}[t]{0.15\columnwidth}\centering
-        \includegraphics[width=0.7\columnwidth]{assets/gp_3_1.png}
+      \begin{subfigure}[t]{0.33\columnwidth}\centering
+        \includegraphics[]{assets/gp_3_1.png}
         \subcaption{GP3+4}
       \end{subfigure}
 
-      \begin{subfigure}[t]{0.15\columnwidth}\centering
-        \includegraphics[width=0.7\columnwidth]{assets/gp_5_1.png}
+      \begin{subfigure}[t]{0.33\columnwidth}\centering
+        \includegraphics[]{assets/gp_5_1.png}
         \subcaption{GP4+5}
       \end{subfigure}
     \end{tabular}
@@ -130,6 +156,7 @@
 \end{frame}
 
 \begin{frame}{Material and method}
+  An output example of our model is shown in Fig.2.
   \begin{figure}[htbp]\centering
     \begin{tabular}{c}
       \begin{subfigure}[t]{0.33\columnwidth}\centering
@@ -148,41 +175,38 @@
       \end{subfigure}
     \end{tabular}
     \label{fig:example}
-    \caption{Example output ofr the U-Net model}
+    \caption{Example output of our U-Net model}
     \label{fig:dl_sample}
   \end{figure}
-
 \end{frame}
 
-
 \begin{frame}{Material and method}
-  The IoU (Intersection over union) calculated by the Jaccard index of the U-Net model were 0.765 for the training datasets and 0.737 for the testing datasets.
+  The IoU (Intersection over union) calculated by the Jaccard index of the U-Net model were 0.765 for the training datasets and 0.737 for the validation datasets.
   \begin{align}
     \label{eq:iou}
     Jaccard\,index = & \; \frac{|PR \cap GT|}{|PR \cup GT|} \\[5mm]
     PR: \mbox{Prediction} & \;\; GT: \mbox{Ground truth} \nonumber
   \end{align}
-
 \end{frame}
 
-
 \begin{frame}{Material and method}
-  In addition, we developed the client/server applications(Fig\ref{fig:arch}). The client gets the images from the microscopic camera, sends to the server. It is installed into Raspberry Pi 4 Model B.
-
-  The server receives the images, passes them to the DL system and serves the results. It is into the computer where DL system works.
-
+  Now we developed the client/server applications (Fig.\ref{fig:arch}) for this study.
+  \par
+  \vspace{0.5zh}
+  The client is installed into Raspberry Pi 4 Model B computer that is connected the microscopic camera via USB and designed to send microscopic image to server with trained U-Net DL model, and receive the semantic segmentation result, integrate the overlay images for the user pathologist.
   \begin{figure}\centering
     \includegraphics[width=0.8\columnwidth]{assets/arch.png}
-    \caption{Architecture of client and server applications}
+    \caption{Architecture of the client and server applications}
     \label{fig:arch}
   \end{figure}
 \end{frame}
 
 \begin{frame}{Material and method}
-  The DL system and the client/server applications were all written in Python and work on Linux-based computers. Especially the DL system uses PyTorch and the client uses GTK+/GStreamer. The source codes are all available on GitHub.\cite{gh-prostate}\cite{gh-pai}
+  The DL system and the client/server applications were all written in Python and work on Linux-based computers. Especially the DL system uses PyTorch and the client uses GTK+/GStreamer. The source codes are all available on GitHub under 2-clause BSD license. \cite{gh-prostate}\cite{gh-pai}
 \end{frame}
 
 \begin{frame}{Result}
+  Here's how it's actually used (Fig.\ref{fig:in_action}).
   \begin{figure}[t]\centering
     \includegraphics[width=\columnwidth, keepaspectratio]{assets/thumb.png}
     \caption{The client application in action (\href{https://drive.google.com/file/d/16hUGZ2jU2Def9N5ozNaZnLvjnWc-kkNP/view}{Link to the movie})}
@@ -191,27 +215,29 @@
 \end{frame}
 
 \begin{frame}{Result}
-  On a computer with sufficient performance, we can get the results of DL analysis in as little as about 20 seconds after clicking the analyze button. The effort and hassle of using the DL was reduced to a minimum. \par
+  Harnessing a computer with sufficient performance, we can get the results of DL analysis in as little as 20 seconds after clicking the analyze button on the screen. This means now any pathologists can try to use our DL model diagnosis without any effort or hassle of the non-integrated system.
+  \par
   \vspace{0.5zh}
-  However it also means we have to wait for at least about 20 seconds. It takes about 10 seconds to analyze FullHD 1920×1080 image for the computer with NVIDIA GeForce GTX 1080 Ti and a few seconds to transfer the result image files.
+  However, it also means we have to wait for at least about 20 seconds; 10 seconds to analyze one Full HD 1920×1080 image still by the computer with dual nVIDIA GeForce GTX 1080 Ti, additional a few seconds to transfer the result image data.
 \end{frame}
 
 \begin{frame}{Result}
-  We were faced with the limitations of the Raspberry Pi's performance. Even just playing the video stream transfored from USB-connected microscopic camera, the FPS drops. \par
+  We were faced with the throughput limit of the Raspberry Pi's calculation power. Simple preview monitoring of the USB-connected camera was exceeding the small computer's throughput, that resulted in frame dropping.
+  \par
   \vspace{0.5zh}
-  And there was also a delay to alpha composite the result image on the original one. The low performance of the hardware was detracting to the user experience of the client software.
+  And there was also a delay to alpha composite the result image on the original one. The poor throughput hinders user experience of the client software.
 \end{frame}
 
 \begin{frame}{Discussion}
-  We found they were grateful for the function just to save the image of the view microscopic view without any analytics. Up until now, microscopic camera was connected to display directyl via HDMI.  With the Raspberry Pi in between the camera and the display, we can now take photograph and analyze in addition to usage so far. \par
+  We found user pathologists were grateful for the function just to save the image of the microscopic view without any analytics. Up until now, microscopic camera was connected to display directyl via HDMI. With the Raspberry Pi in between the camera and the display, we can now take photograph and analyze in addition to usage so far. \par
   \vspace{0.5zh}
   Users experienced as if the microscope camera was augmented in functional extension of itself.
 \end{frame}
 
 \begin{frame}{Conclusion}
-  We discoverd the new side of Raspberry Pi as an extension of the microscope camera itself. Its good point is that it is inexpensive, about 7,000 yen, but the performance was not sufficient to handle images. \par
+  We discoverd the new side of Raspberry Pi as an add-on for the microscope camera. Though it is low cost as 7,000 yen, the throughput was not sufficient to handle Full HD images. \par
   \vspace{0.5zh}
-  We might need a device with another higher performance on this usage.
+  Future improvement may let us enable handling HD movie DL diagnosis.
 \end{frame}
 
 \begin{frame}{References}
