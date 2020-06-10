@@ -1,10 +1,12 @@
 import argparse
 
-
 parser = argparse.ArgumentParser()
-parser.add_argument('--src')
-parser.add_argument('--sync', action='store_true')
-parser.add_argument('--api-host', default='http://localhost:3000')
+parser.add_argument('--src',
+                    help='GStreamer src e.g. `v4l2src device=/dev/video0 ! videoconvert`')
+parser.add_argument('--api-uri', default='http://localhost:3000',
+                    help='Base URI of server e.g. `http://localhost:3000`')
+parser.add_argument('--sync', action='store_true',
+                    help='`sync` option for gtksink')
 args = parser.parse_args()
 
 if args.src:

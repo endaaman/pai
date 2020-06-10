@@ -71,13 +71,13 @@ class AnalyzeHandler(web.RequestHandler):
         with open(image_path, 'wb') as f:
             f.write(img['body'])
 
-        if USE_DUMMY:
+        loop = ioloop.IOLoop.current()
+        if SCRIPT_PATH:
+            result = await loop.run_in_executor(None, command_inference, image_path, name)
+        else:
             loop = ioloop.IOLoop.current()
             result = await loop.run_in_executor(None, command_dummuy, image_path, name)
             await gen.sleep(3)
-        else:
-            loop = ioloop.IOLoop.current()
-            result = await loop.run_in_executor(None, command_inference, image_path, name)
 
         print('Result: ', result)
         self.write(result._asdict())
