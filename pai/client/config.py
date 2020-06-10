@@ -15,6 +15,6 @@ else:
     GST_SOURCE = 'videotestsrc ! clockoverlay'
 
 SYNC = args.sync
-API_HOST = args.api_host
+API_URI = args.api_uri
 RECONNECT_INTERVAL = 5
 RESULT_TREE_UPDATE_INTERVAL = 20 * 1000

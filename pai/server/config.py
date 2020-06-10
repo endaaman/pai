@@ -2,7 +2,7 @@ import os
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--script', default='infer.sh',
+parser.add_argument('--script',
                     help='Path to inference script')
 parser.add_argument('--host', default='0.0.0.0',
                     help='IP addr to which the server listen')
@@ -14,10 +14,8 @@ parser.add_argument('--uploaded-dir', default='./uploaded',
                     help='Path to dir where the temporary uploaded files are saved')
 args = parser.parse_args()
 
-USE_DUMMY = args.dummy
 HOST = args.host
 PORT = args.port
-SCRIPT_PATH = os.path.abspath(args.script)
-
+SCRIPT_PATH = args.script
 RESULTS_DIR = args.results_dir
 UPLOADED_DIR = args.uploaded_dir

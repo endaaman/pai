@@ -23,7 +23,6 @@ import gbulb.gtk
 
 from .utils import debounce, glib_async, applay_pil_image_to_gtk_image, Withable, image_overlay
 from .api import analyze_image, fetch_detail, fetch_results
-from .ws import WS
 from .ui import GstWidget, MessageDialog
 from .config import GST_SOURCE, RESULT_TREE_UPDATE_INTERVAL, RECONNECT_INTERVAL
 from pai.common import find_results

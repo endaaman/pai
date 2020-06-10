@@ -7,14 +7,14 @@ import aiohttp
 import asyncio
 
 from pai.common import Result, Detail
-from .config import API_HOST
+from .config import API_URI
 
 CHUNK_SIZE = 1024
 IMAGE_BASE = 'results'
 
 
 async def fetch_results():
-    url = urljoin(API_HOST, '/results')
+    url = urljoin(API_URI, '/results')
     print(f'Fetch results: GET {url}')
     async with aiohttp.ClientSession() as session:
         response = await session.get(url)
@@ -25,7 +25,7 @@ async def fetch_results():
 
 
 async def download_image(name, target):
-    u = urljoin(API_HOST, '/'.join(['images', name, target]))
+    u = urljoin(API_URI, '/'.join(['images', name, target]))
     print(f'Download image: GET {u}')
     async with aiohttp.ClientSession() as session:
         response = await session.get(u)
@@ -59,7 +59,7 @@ async def analyze_image(image, name):
     data.add_field('name', name)
     data.add_field('image', buffer.getvalue(), filename='image.png', content_type='image/jpeg')
 
-    url = urljoin(API_HOST, '/analyze')
+    url = urljoin(API_URI, '/analyze')
     print(f'Analayze image: POST {url}')
     async with aiohttp.ClientSession() as session:
         response = await session.post(url, data=data)

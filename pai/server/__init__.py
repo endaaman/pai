@@ -9,7 +9,7 @@ from tornado import web, ioloop, gen
 
 from pai.common import ORIGINAL_FILENAME, Result
 
-from .config import USE_DUMMY, HOST, PORT, SCRIPT_PATH, RESULTS_DIR, UPLOADED_DIR
+from .config import HOST, PORT, SCRIPT_PATH, RESULTS_DIR, UPLOADED_DIR
 
 def get_result(name):
     d = os.path.join(RESULTS_DIR, name)
