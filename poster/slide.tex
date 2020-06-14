@@ -93,7 +93,7 @@
 \end{frame}
 
 \begin{frame}{Introduction}
-  In recent years, image analysis of histopathology field has been remarkably improved due to deep learning (DL) method using convolutional network. On the other hand, not many facilities are using DL system for its initial cost or unproven reliability. Several steps required to obtain inferential results from DL on histopathological images.
+  In recent years, image analysis of histopathology field has been remarkably improved due to deep learning (DL) method using convolutional neural network. On the other hand, not many facilities are using DL system for its initial cost or unproven reliability. Several steps required to obtain inferential results from DL on histopathological images.
 \end{frame}
 
 \begin{frame}{Introduction}
@@ -115,39 +115,28 @@
 \end{frame}
 
 \begin{frame}{Material and method}
-
   \begin{figure}[htbp]\centering
     \begin{tabular}{c}
-      \begin{subfigure}[t]{0.33\columnwidth}\centering
+      \begin{subfigure}[t]{0.49\columnwidth}\centering
         \includegraphics[]{assets/gp_pin.png}
         \subcaption{Normal glands:black}
       \end{subfigure}
 
-      \begin{subfigure}[t]{0.33\columnwidth}\centering
-        \includegraphics[]{assets/gp_3_2.png}
+      \begin{subfigure}[t]{0.49\columnwidth}\centering
+        \includegraphics[]{assets/gp_3.png}
         \subcaption{GP3:blue}
-      \end{subfigure}
-
-      \begin{subfigure}[t]{0.33\columnwidth}\centering
-        \includegraphics[]{assets/gp_4.png}
-        \subcaption{GP4:green}
       \end{subfigure}
     \end{tabular}
 
     \begin{tabular}{c}
-      \begin{subfigure}[t]{0.33\columnwidth}\centering
-        \includegraphics[]{assets/gp_5_2.png}
+      \begin{subfigure}[t]{0.49\columnwidth}\centering
+        \includegraphics[]{assets/gp_4.png}
+        \subcaption{GP4:green}
+      \end{subfigure}
+
+      \begin{subfigure}[t]{0.49\columnwidth}\centering
+        \includegraphics[]{assets/gp_5.png}
         \subcaption{GP5:red}
-      \end{subfigure}
-
-      \begin{subfigure}[t]{0.33\columnwidth}\centering
-        \includegraphics[]{assets/gp_3_1.png}
-        \subcaption{GP3+4}
-      \end{subfigure}
-
-      \begin{subfigure}[t]{0.33\columnwidth}\centering
-        \includegraphics[]{assets/gp_5_1.png}
-        \subcaption{GP4+5}
       \end{subfigure}
     \end{tabular}
     \label{fig:example}
@@ -191,14 +180,33 @@
 \end{frame}
 
 \begin{frame}{Material and method}
-  Now we developed the client/server applications (Fig.\ref{fig:arch}) for this study.
+  Now we developed the client/server applications for this study (Fig.\ref{fig:arch}).
   \par
   \vspace{0.5zh}
-  The client is installed into Raspberry Pi 4 Model B computer that is connected the microscopic camera via USB and designed to send microscopic image to server with trained U-Net DL model, and receive the semantic segmentation result, integrate the overlay images for the user pathologist.
+  The client is installed into Raspberry Pi 4 Model B (Fig.\ref{fig:pi}) that is connected the microscopic camera (Fig.\ref{fig:camera}) via USB and designed to send microscopic image to server with trained U-Net DL model, and receive the semantic segmentation result, integrate the overlay images for the user pathologist.
   \begin{figure}\centering
     \includegraphics[width=0.8\columnwidth]{assets/arch.png}
     \caption{Architecture of the client and server applications}
     \label{fig:arch}
+  \end{figure}
+\end{frame}
+
+\begin{frame}{Material and method}
+  \begin{figure}[htbp]\centering
+    \begin{tabular}{c}
+      \begin{subfigure}[t]{0.49\columnwidth}\centering
+        \includegraphics[width=\columnwidth]{assets/pi.png}
+        \subcaption{Raspberry Pi 4 Model B}
+        \label{fig:pi}
+      \end{subfigure}
+      \begin{subfigure}[t]{0.49\columnwidth}\centering
+        \includegraphics[width=\columnwidth]{assets/camera.png}
+        \subcaption{Microscopic camera}
+        \label{fig:camera}
+      \end{subfigure}
+    \end{tabular}
+    \label{fig:example}
+    \caption{The devices used}
   \end{figure}
 \end{frame}
 
